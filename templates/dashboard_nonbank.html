@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Non Bank</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#850E35',
+              'primary-light': '#EE6983',
+              'primary-lighter': '#FFC4C4',
+              'cream': '#FCF5EE',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>body { font-family: 'Inter', system-ui, sans-serif; }</style>
+</head>
+
+<body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="hidden lg:flex w-64 flex-col" style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);">
+        <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800">
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_main') }}">
+            <span>Dashboard Utama</span>
+          </a>
+          <a class="flex items-center px-4 py-3 rounded-xl text-white font-semibold" style="background: rgba(255,255,255,0.2);" href="#">
+            <span>Non Bank</span>
+          </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-white/20">
+          <p class="text-xs text-center" style="color: rgba(255,255,255,0.5);">© 2024 K-WD Dashboard</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Non Bank</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Non Bank</h1>
+            </div>
+            <a href="{{ url_for('dashboard_main') }}" class="h-10 px-4 rounded-xl flex items-center gap-2 border-2" style="border-color: #FFC4C4; color: #850E35;">
+              <span class="iconify tabler--arrow-left"></span>
+              <span class="text-sm font-semibold hidden sm:inline">Kembali</span>
+            </a>
+          </div>
+        </header>
+
+        <main class="flex-1 px-6 lg:px-10 py-10">
+          <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+              <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-4" style="background-color: #FFC4C4; color: #850E35;">
+                <span class="iconify tabler--building"></span>
+                <span>Non Bank</span>
+              </div>
+              <h2 class="text-3xl font-bold mb-3" style="color: #850E35;">Pilih Kategori Non Bank</h2>
+              <p class="max-w-lg mx-auto" style="color: #6B7280;">Pilih kategori untuk melihat dashboard analisis lembaga keuangan non bank</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <a href="{{ url_for('dashboard_dana_pensiun') }}" class="bg-white rounded-2xl p-8 border-2 hover:shadow-xl transition-all group" style="border-color: #FFC4C4;">
+                <div class="flex items-start gap-5 mb-5">
+                  <div class="h-16 w-16 rounded-2xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                    <span class="iconify tabler--wallet text-3xl" style="color: #850E35;"></span>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold group-hover:opacity-80 transition-colors" style="color: #850E35;">Dana Pensiun</h3>
+                    <p class="text-sm" style="color: #EE6983;">Dashboard Kinerja Dana Pensiun</p>
+                  </div>
+                </div>
+                <p class="mb-6" style="color: #6B7280;">Analisis lengkap kinerja dana pensiun termasuk Total Aset, Investasi, dan performa keuangan.</p>
+                <div class="flex items-center gap-2 font-semibold group-hover:gap-3 transition-all" style="color: #EE6983;">
+                  <span>Buka Dashboard</span>
+                  <span class="iconify tabler--arrow-right text-lg"></span>
+                </div>
+              </a>
+
+              <a href="{{ url_for('dashboard_asuransi') }}" class="bg-white rounded-2xl p-8 border-2 hover:shadow-xl transition-all group" style="border-color: #FFC4C4;">
+                <div class="flex items-start gap-5 mb-5">
+                  <div class="h-16 w-16 rounded-2xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                    <span class="iconify tabler--shield-check text-3xl" style="color: #850E35;"></span>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold group-hover:opacity-80 transition-colors" style="color: #850E35;">Asuransi</h3>
+                    <p class="text-sm" style="color: #EE6983;">Dashboard Kinerja Asuransi</p>
+                  </div>
+                </div>
+                <p class="mb-6" style="color: #6B7280;">Analisis kinerja perusahaan asuransi termasuk premi, klaim, dan rasio keuangan.</p>
+                <div class="flex items-center gap-2 font-semibold group-hover:gap-3 transition-all" style="color: #EE6983;">
+                  <span>Buka Dashboard</span>
+                  <span class="iconify tabler--arrow-right text-lg"></span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </main>
+        
+        <footer class="border-t bg-white py-4 px-6 lg:px-10" style="border-color: #FFC4C4;">
+          <div class="text-center text-sm" style="color: #9CA3AF;">© 2024 Dashboard Keuangan</div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Keuangan - Pilih Kategori</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#850E35',
+              'primary-light': '#EE6983',
+              'primary-lighter': '#FFC4C4',
+              'cream': '#FCF5EE',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: 'Inter', system-ui, sans-serif; }
+    </style>
+</head>
+
+<body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="hidden lg:flex w-64 flex-col" style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);">
+        <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800">
+          
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-white font-semibold" style="background: rgba(255,255,255,0.2);" href="{{ url_for('dashboard_main') }}">
+            <span class="iconify tabler--home text-lg"></span>
+            <span>Dashboard</span>
+          </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-white/20">
+          <p class="text-xs text-center" style="color: rgba(255,255,255,0.5);">© 2024 K-WD Dashboard</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="border-b" style="background-color: #FFFFFF; border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Home</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Keuangan</h1>
+            </div>
+            <div class="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold" style="background-color: #850E35;">
+              U
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-6 lg:px-10 py-10">
+          <div class="max-w-5xl mx-auto">
+            <!-- Header Section -->
+            <div class="text-center mb-12">
+              <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-4" style="background-color: #FFC4C4; color: #850E35;">
+                <span class="iconify tabler--chart-bar"></span>
+                <span>Pilih Dashboard</span>
+              </div>
+              <h2 class="text-3xl font-bold mb-3" style="color: #850E35;">Pilih Kategori Dashboard</h2>
+              <p class="max-w-lg mx-auto" style="color: #6B7280;">Pilih kategori untuk melihat dashboard analisis keuangan yang sesuai dengan kebutuhan Anda</p>
+            </div>
+
+            <!-- Category Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <!-- Perbankan Card -->
+              <a href="{{ url_for('dashboard_perbankan') }}" class="bg-white rounded-2xl p-8 border-2 hover:shadow-xl transition-all group" style="border-color: #FFC4C4;">
+                <div class="flex items-start gap-5 mb-5">
+                  <div class="h-16 w-16 rounded-2xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                    <span class="iconify tabler--building-bank text-3xl" style="color: #850E35;"></span>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold group-hover:opacity-80 transition-colors" style="color: #850E35;">Perbankan</h3>
+                    <p class="text-sm" style="color: #EE6983;">Dashboard Kinerja Perbankan</p>
+                  </div>
+                </div>
+                <p class="mb-6 leading-relaxed" style="color: #6B7280;">
+                  Lihat analisis lengkap kinerja perbankan termasuk Total Aset, Kredit, DPK, NPL, dan UMKM.
+                </p>
+                <div class="flex items-center gap-2 font-semibold group-hover:gap-3 transition-all" style="color: #EE6983;">
+                  <span>Buka Dashboard</span>
+                  <span class="iconify tabler--arrow-right text-lg"></span>
+                </div>
+              </a>
+
+              <!-- Non Bank Card -->
+              <a href="{{ url_for('dashboard_nonbank') }}" class="bg-white rounded-2xl p-8 border-2 hover:shadow-xl transition-all group" style="border-color: #FFC4C4;">
+                <div class="flex items-start gap-5 mb-5">
+                  <div class="h-16 w-16 rounded-2xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                    <span class="iconify tabler--building text-3xl" style="color: #850E35;"></span>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold group-hover:opacity-80 transition-colors" style="color: #850E35;">Non Bank</h3>
+                    <p class="text-sm" style="color: #EE6983;">Dashboard Kinerja Non Bank</p>
+                  </div>
+                </div>
+                <p class="mb-6 leading-relaxed" style="color: #6B7280;">
+                  Analisis kinerja lembaga keuangan non bank seperti Dana Pensiun dan Asuransi.
+                </p>
+                <div class="flex items-center gap-2 font-semibold group-hover:gap-3 transition-all" style="color: #EE6983;">
+                  <span>Buka Dashboard</span>
+                  <span class="iconify tabler--arrow-right text-lg"></span>
+                </div>
+              </a>
+            </div>
+            
+            <!-- Info Banner -->
+            <div class="mt-12 p-6 rounded-2xl bg-white border-2" style="border-color: #FFC4C4;">
+              <div class="flex items-start gap-4">
+                <div class="h-10 w-10 rounded-xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                  <span class="iconify tabler--info-circle text-xl" style="color: #850E35;"></span>
+                </div>
+                <div>
+                  <h4 class="font-semibold mb-1" style="color: #850E35;">Tentang Dashboard</h4>
+                  <p class="text-sm leading-relaxed" style="color: #6B7280;">
+                    Dashboard ini menyediakan visualisasi data keuangan dari berbagai sektor. 
+                    Data diperbarui secara berkala untuk memberikan insight yang akurat dan terkini.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        
+        <footer class="border-t bg-white py-4 px-6 lg:px-10" style="border-color: #FFC4C4;">
+          <div class="text-center text-sm" style="color: #9CA3AF;">
+            © 2024 Dashboard Keuangan. All rights reserved.
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+</body>
+</html>

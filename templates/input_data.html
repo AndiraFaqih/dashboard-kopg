@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Input Data - Dashboard Keuangan</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#850E35',
+              'primary-light': '#EE6983',
+              'primary-lighter': '#FFC4C4',
+              'cream': '#FCF5EE',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: 'Inter', system-ui, sans-serif; }
+      
+      /* Icon arrow-right: hilangkan box dan buat hitam */
+      [data-icon="tabler:arrow-right"] {
+        color: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      [data-icon="tabler:arrow-right"] svg {
+        fill: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      [data-icon="tabler:arrow-right"] svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+      }
+    </style>
+  </head>
+
+  <body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="hidden lg:flex w-64 flex-col" style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);">
+        <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800">
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard') }}">
+            <span>Perbankan</span>
+          </a>
+          <div class="space-y-1" x-data="{ open: false }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10">
+              <span>Non Bank</span>
+              <span class="iconify transition-transform duration-200" :class="{'rotate-90': open}" data-icon="tabler:arrow-right" style="color: #000000; background: transparent;"></span>
+            </button>
+            <div x-show="open" x-transition class="ml-4 space-y-1 mt-1">
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_dana_pensiun') }}">
+                <span class="text-sm">Dana Pensiun</span>
+              </a>
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_asuransi') }}">
+                <span class="text-sm">Asuransi</span>
+              </a>
+            </div>
+          </div>
+          
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_komoditas') }}">
+            <span>Komoditas</span>
+          </a>
+          
+          <a class="flex items-center px-4 py-3 rounded-xl text-white font-semibold" style="background: rgba(255,255,255,0.2);" href="{{ url_for('input_data') }}">
+            <span>Input Data</span>
+          </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-white/20">
+          <p class="text-xs text-center" style="color: rgba(255,255,255,0.5);">© 2024 K-WD Dashboard</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Data Management</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Input Data</h1>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-6 lg:px-10 py-6 space-y-6">
+          <!-- Tabs untuk pilihan kategori -->
+          <div class="bg-white rounded-2xl p-6 border-2" style="border-color: #FFC4C4;" x-data="{ activeTab: 'perbankan' }">
+            <div class="flex gap-2 mb-6 border-b" style="border-color: #FFC4C4;">
+              <button
+                @click="activeTab = 'perbankan'"
+                :class="activeTab === 'perbankan' ? 'text-white' : 'hover:bg-gray-100'"
+                :style="activeTab === 'perbankan' ? 'background-color: #850E35' : 'color: #850E35'"
+                class="px-6 py-3 rounded-t-xl font-semibold transition-colors"
+              >
+                Data Perbankan
+              </button>
+              <button
+                @click="activeTab = 'nonbank'"
+                :class="activeTab === 'nonbank' ? 'text-white' : 'hover:bg-gray-100'"
+                :style="activeTab === 'nonbank' ? 'background-color: #EE6983' : 'color: #EE6983'"
+                class="px-6 py-3 rounded-t-xl font-semibold transition-colors"
+              >
+                Data Non Bank
+              </button>
+            </div>
+
+            <!-- Form Input Data Perbankan -->
+            <div x-show="activeTab === 'perbankan'" x-transition>
+              <form method="POST" action="{{ url_for('submit_data_perbankan') }}" enctype="multipart/form-data" class="space-y-6 confirm-submit">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Negara</label>
+                    <input type="text" name="negara" value="INDONESIA" readonly class="w-full rounded-xl border-2 text-sm px-4 py-2.5" style="border-color: #FFC4C4; background-color: #FCF5EE; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Provinsi</label>
+                    <input type="text" name="provinsi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" placeholder="Masukkan provinsi" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Tahun</label>
+                    <input type="number" name="tahun" maxlength="4" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" placeholder="YYYY" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Bulan</label>
+                    <select name="bulan" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                      <option value="">Pilih Bulan</option>
+                      <option value="1">Januari</option>
+                      <option value="2">Februari</option>
+                      <option value="3">Maret</option>
+                      <option value="4">April</option>
+                      <option value="5">Mei</option>
+                      <option value="6">Juni</option>
+                      <option value="7">Juli</option>
+                      <option value="8">Agustus</option>
+                      <option value="9">September</option>
+                      <option value="10">Oktober</option>
+                      <option value="11">November</option>
+                      <option value="12">Desember</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Total Aset</label>
+                    <input type="number" step="0.01" name="total_aset" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Giro</label>
+                    <input type="number" step="0.01" name="giro" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Tabungan</label>
+                    <input type="number" step="0.01" name="tabungan" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Deposito</label>
+                    <input type="number" step="0.01" name="deposito" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Total DPK</label>
+                    <input type="number" step="0.01" name="total_dpk" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Modal Kerja</label>
+                    <input type="number" step="0.01" name="modal_kerja" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Investasi</label>
+                    <input type="number" step="0.01" name="investasi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Konsumsi</label>
+                    <input type="number" step="0.01" name="konsumsi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Total Kredit</label>
+                    <input type="number" step="0.01" name="total_kredit" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Nominal NPL Gross</label>
+                    <input type="number" step="0.01" name="nominal_npl_gross" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Rasio NPL Gross (%)</label>
+                    <input type="number" step="0.01" name="rasio_npl_gross" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Nominal NPL Net</label>
+                    <input type="number" step="0.01" name="nominal_npl_net" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Rasio NPL Net (%)</label>
+                    <input type="number" step="0.01" name="rasio_npl_net" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold mb-2" style="color: #850E35;">LDR (%)</label>
+                    <input type="number" step="0.01" name="loan_to_deposit_ratio_ldr" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                  </div>
+                </div>
+
+
+
+                <div class="flex gap-3 pt-4">
+                  <button type="submit" class="px-6 py-3 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;">Simpan Data</button>
+                  <button type="reset" class="px-6 py-3 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;">Reset Form</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Form Input Data Non Bank -->
+            <div x-show="activeTab === 'nonbank'" x-transition>
+              <div class="space-y-8">
+                <!-- Form Asuransi -->
+                <div class="rounded-xl p-5 border-2" style="background-color: #FCF5EE; border-color: #EE6983;">
+                  <h3 class="text-lg font-semibold mb-4" style="color: #EE6983;">Input Data Asuransi</h3>
+                  <form method="POST" action="{{ url_for('submit_data_asuransi') }}" class="space-y-4 confirm-submit">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Provinsi</label>
+                        <input type="text" name="provinsi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Kabupaten</label>
+                        <input type="text" name="kabupaten" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Periode</label>
+                        <select name="periode" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                          <option value="">Pilih Periode</option>
+                          <option value="Triwulan I">Triwulan I</option>
+                          <option value="Triwulan II">Triwulan II</option>
+                          <option value="Triwulan III">Triwulan III</option>
+                          <option value="Triwulan IV">Triwulan IV</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Tahun</label>
+                        <input type="number" name="tahun" placeholder="YYYY" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jenis</label>
+                        <input type="text" name="jenis" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Premi (Rp Juta)</label>
+                        <input type="number" step="0.01" name="premi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Klaim (Rp Juta)</label>
+                        <input type="number" step="0.01" name="klaim" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jumlah Peserta Premi</label>
+                        <input type="number" name="jumlah_peserta_premi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jumlah Peserta Klaim</label>
+                        <input type="number" name="jumlah_peserta_klaim" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jumlah Polis Premi</label>
+                        <input type="number" name="jumlah_polis_premi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jumlah Polis Klaim</label>
+                        <input type="number" name="jumlah_polis_klaim" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                      <button type="submit" class="px-5 py-3 rounded-xl text-sm font-semibold text-white" style="background-color: #EE6983;">Simpan Asuransi</button>
+                      <button type="reset" class="px-5 py-3 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;">Reset</button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Form Dana Pensiun -->
+                <div class="rounded-xl p-5 border-2" style="background-color: #FCF5EE; border-color: #850E35;">
+                  <h3 class="text-lg font-semibold mb-4" style="color: #850E35;">Input Data Dana Pensiun</h3>
+                  <form method="POST" action="{{ url_for('submit_data_dana_pensiun') }}" class="space-y-4 confirm-submit">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Negara</label>
+                        <input type="text" name="negara" value="INDONESIA" readonly class="w-full rounded-xl border-2 text-sm px-4 py-2.5" style="border-color: #FFC4C4; background-color: #FCF5EE; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Provinsi</label>
+                        <input type="text" name="provinsi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Bulan</label>
+                        <select name="bulan" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                          <option value="">Pilih Bulan</option>
+                          <option value="1">Januari</option>
+                          <option value="2">Februari</option>
+                          <option value="3">Maret</option>
+                          <option value="4">April</option>
+                          <option value="5">Mei</option>
+                          <option value="6">Juni</option>
+                          <option value="7">Juli</option>
+                          <option value="8">Agustus</option>
+                          <option value="9">September</option>
+                          <option value="10">Oktober</option>
+                          <option value="11">November</option>
+                          <option value="12">Desember</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Tahun</label>
+                        <input type="number" name="tahun" placeholder="YYYY" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Jumlah Dana Pensiun</label>
+                        <input type="number" name="jumlah_dana_pensiun" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Aset (Rp Miliar)</label>
+                        <input type="number" step="0.01" name="aset" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Aset Neto (Rp Miliar)</label>
+                        <input type="number" step="0.01" name="aset_neto" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-semibold mb-2" style="color: #850E35;">Investasi (Rp Miliar)</label>
+                        <input type="number" step="0.01" name="investasi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;" />
+                      </div>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                      <button type="submit" class="px-5 py-3 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;">Simpan Dana Pensiun</button>
+                      <button type="reset" class="px-5 py-3 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;">Reset</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+        </main>
+        
+        <footer class="border-t bg-white py-4 px-6 lg:px-10" style="border-color: #FFC4C4;">
+          <div class="text-center text-sm" style="color: #9CA3AF;">© 2024 Dashboard Keuangan</div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const redirectUrl = "{{ url_for('input_data') }}";
+        const forms = document.querySelectorAll("form.confirm-submit");
+        forms.forEach((form) => {
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            Swal.fire({
+              title: "Kirim data?",
+              text: "Pastikan data sudah benar. Lanjut simpan?",
+              icon: "question",
+              showCancelButton: true,
+              confirmButtonColor: "#850E35",
+              confirmButtonText: "Ya, simpan",
+              cancelButtonText: "Batal",
+              reverseButtons: true,
+            }).then((result) => {
+              if (!result.isConfirmed) return;
+              const formData = new FormData(form);
+              fetch(form.action, { method: form.method || "POST", body: formData })
+                .then(() => Swal.fire({ title: "Berhasil", text: "Data berhasil disimpan.", icon: "success", confirmButtonColor: "#850E35" }))
+                .then(() => { window.location.href = redirectUrl; })
+                .catch((err) => { Swal.fire({ title: "Gagal", text: "Terjadi kesalahan.", icon: "error", confirmButtonColor: "#850E35" }); console.error(err); });
+            });
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Keuangan</title>
+
+    <!-- KWD Dashboard skin -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='kwd/css/main.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind runtime (for on-the-fly utility usage) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#850E35',
+              'primary-light': '#EE6983',
+              'primary-lighter': '#FFC4C4',
+              'cream': '#FCF5EE',
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <style>
+      :root {
+        --primary: #994038;
+        --primary-light: #B85A52;
+        --primary-lighter: #D4837C;
+        --primary-dark: #7A3028;
+        --primary-50: #FDF5F4;
+        --primary-100: #FAEAE8;
+      }
+      body {
+        font-family: 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #F9FAFB;
+      }
+      
+      /* Sidebar styling */
+      .sidebar {
+        background: linear-gradient(180deg, #994038 0%, #7A3028 100%);
+      }
+      
+      /* Filter panel */
+      .filter-panel {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* KPI Cards */
+      .kpi-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+      .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+      }
+      .kpi-card.kpi-primary::before { background: linear-gradient(90deg, #994038, #B85A52); }
+      .kpi-card.kpi-success::before { background: linear-gradient(90deg, #059669, #10B981); }
+      .kpi-card.kpi-warning::before { background: linear-gradient(90deg, #D97706, #F59E0B); }
+      .kpi-card.kpi-danger::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+      
+      /* Legacy card class */
+      .card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Chart cards */
+      .chart-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Glass panel */
+      .glass {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Header gradient text */
+      .text-gradient {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 50%, #994038 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      /* Button styling */
+      .btn-primary {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 100%);
+        box-shadow: 0 2px 8px rgba(153, 64, 56, 0.25);
+        transition: all 0.2s ease;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #7A3028 0%, #994038 100%);
+      }
+      
+      /* Positive/Negative indicators */
+      .indicator-positive { color: #059669; }
+      .indicator-negative { color: #DC2626; }
+      
+      /* Select styling */
+      select:focus {
+        border-color: #994038;
+        box-shadow: 0 0 0 3px rgba(153, 64, 56, 0.1);
+      }
+      
+      /* Text color overrides */
+      .text-slate-100, .text-slate-200, .text-gray-700 {
+        color: #1f2937 !important;
+      }
+      .text-slate-400 {
+        color: #4b5563 !important;
+      }
+      .text-slate-50 {
+        color: #1f2937 !important;
+      }
+      
+      /* Icon arrow-right: hilangkan box dan buat hitam */
+      [data-icon="tabler:arrow-right"] {
+        color: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      [data-icon="tabler:arrow-right"] svg {
+        fill: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      [data-icon="tabler:arrow-right"] svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+      }
+    </style>
+  </head>
+
+  <body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    {% macro fmt_rp(v) -%}
+      {%- if v is not none -%}
+        Rp {{ "{:,.2f}".format(v).replace(",", ".") }} T
+      {%- else -%}
+        -
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro fmt_rp_m(v) -%}
+      {%- if v is not none -%}
+        Rp {{ "{:,.2f}".format(v).replace(",", ".") }} M
+      {%- else -%}
+        -
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro fmt_pct(v) -%}
+      {%- if v is not none -%}
+        {{ "{:,.2f}%".format(v).replace(",", ".") }}
+      {%- else -%}
+        -
+      {%- endif -%}
+    {%- endmacro %}
+
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="hidden lg:flex w-64 flex-col" style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);">
+        <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800">
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <!-- Perbankan - Active -->
+          <a class="flex items-center px-4 py-3 rounded-xl text-white font-semibold" style="background: rgba(255,255,255,0.2);" href="{{ url_for('dashboard') }}">
+            <span>Perbankan</span>
+          </a>
+          
+          <!-- Non Bank - dengan dropdown -->
+          <div class="space-y-1" x-data="{ open: false }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+              <span>Non Bank</span>
+              <span class="iconify transition-transform duration-200" :class="{'rotate-90': open}" data-icon="tabler:arrow-right" style="color: #000000; background: transparent;"></span>
+            </button>
+            <div x-show="open" x-transition class="ml-4 space-y-1 mt-1">
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_dana_pensiun') }}">
+                <span class="text-sm">Dana Pensiun</span>
+              </a>
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_asuransi') }}">
+                <span class="text-sm">Asuransi</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Komoditas -->
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_komoditas') }}">
+            <span>Komoditas</span>
+          </a>
+
+          <!-- Input Data -->
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('input_data') }}">
+            <span>Input Data</span>
+          </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-white/20">
+          <p class="text-xs text-center" style="color: rgba(255,255,255,0.5);">© 2024 K-WD Dashboard</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Perbankan</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Keuangan</h1>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-gray-100 border-2" style="color: #EE6983; border-color: #FFC4C4;">
+                <span class="iconify tabler--bell text-lg"></span>
+              </button>
+              <img src="{{ url_for('static', filename='kwd/images/avatar.jpeg') }}" alt="avatar" class="h-10 w-10 rounded-full border-2" style="border-color: #FFC4C4;" />
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+          <!-- Filters -->
+          <form method="get" class="bg-white rounded-2xl px-6 py-5 border-2" style="border-color: #FFC4C4;">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-2">Negara</label>
+              <select
+                name="negara"
+                  class="w-full rounded-xl border text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" style="border-color: rgba(153, 64, 56, 0.3); background-color: #ffffff; color: #1f2937;"
+              >
+                <option value="">Semua</option>
+                {% for n in negara_list %}
+                <option value="{{ n }}" {% if n == negara_selected %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-2">Provinsi</label>
+              <select
+                name="provinsi"
+                  class="w-full rounded-xl border text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" style="border-color: rgba(153, 64, 56, 0.3); background-color: #ffffff; color: #1f2937;"
+              >
+                <option value="">Semua</option>
+                {% for p in provinsi_list %}
+                <option value="{{ p }}" {% if p == provinsi_selected %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-2">Tahun (anchor)</label>
+              <select
+                name="tahun"
+                  class="w-full rounded-xl border text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" style="border-color: rgba(153, 64, 56, 0.3); background-color: #ffffff; color: #1f2937;"
+              >
+                <option value="">Semua</option>
+                {% for t in tahun_list %}
+                <option value="{{ t }}" {% if t|string == tahun_selected %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-2">Bulan (anchor)</label>
+              <select
+                name="bulan"
+                  class="w-full rounded-xl border text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" style="border-color: rgba(153, 64, 56, 0.3); background-color: #ffffff; color: #1f2937;"
+              >
+                <option value="">Semua</option>
+                {% for b in bulan_list %}
+                <option value="{{ b }}" {% if b|string == bulan_selected %}selected{% endif %}>
+                  {{ "%02d"|format(b) }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-2">Rentang Waktu</label>
+              <select
+                name="interval"
+                  class="w-full rounded-xl border text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" style="border-color: rgba(153, 64, 56, 0.3); background-color: #ffffff; color: #1f2937;"
+              >
+                <option value="bulanan" {% if interval_selected=='bulanan' %}selected{% endif %}>Bulanan</option>
+                <option value="triwulan" {% if interval_selected=='triwulan' %}selected{% endif %}>Triwulan</option>
+                <option value="semesteran" {% if interval_selected=='semesteran' %}selected{% endif %}>Semesteran</option>
+                <option value="tahunan" {% if interval_selected=='tahunan' %}selected{% endif %}>Tahunan</option>
+              </select>
+            </div>
+            <div class="flex gap-3">
+              <button type="submit" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary-dark">
+                Terapkan
+              </button>
+              <a href="{{ url_for('dashboard') }}" class="px-4 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50">
+                Reset
+              </a>
+            </div>
+            </div>
+          </form>
+
+          <!-- KPI cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div class="kpi-card kpi-primary bg-white rounded-2xl p-5 border border-gray-200">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">Total Aset</p>
+                <p class="text-2xl font-bold text-gray-800 mt-2">{{ fmt_rp(aset_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t border-gray-100">
+                <div><p class="text-xs text-gray-500">YtD</p><p class="text-sm font-bold {% if aset_ytd and aset_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(aset_ytd) }}</p></div>
+                <div><p class="text-xs text-gray-500">YoY</p><p class="text-sm font-bold {% if aset_yoy and aset_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(aset_yoy) }}</p></div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-success bg-white rounded-2xl p-5 border border-gray-200">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">Total Kredit</p>
+                <p class="text-2xl font-bold text-gray-800 mt-2">{{ fmt_rp(kredit_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t border-gray-100">
+                <div><p class="text-xs text-gray-500">YtD</p><p class="text-sm font-bold {% if kredit_ytd and kredit_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(kredit_ytd) }}</p></div>
+                <div><p class="text-xs text-gray-500">YoY</p><p class="text-sm font-bold {% if kredit_yoy and kredit_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(kredit_yoy) }}</p></div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-warning bg-white rounded-2xl p-5 border border-gray-200">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">Total DPK</p>
+                <p class="text-2xl font-bold text-gray-800 mt-2">{{ fmt_rp(dpk_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t border-gray-100">
+                <div><p class="text-xs text-gray-500">YtD</p><p class="text-sm font-bold {% if dpk_ytd and dpk_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(dpk_ytd) }}</p></div>
+                <div><p class="text-xs text-gray-500">YoY</p><p class="text-sm font-bold {% if dpk_yoy and dpk_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(dpk_yoy) }}</p></div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-danger bg-white rounded-2xl p-5 border border-gray-200">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">Rasio NPL Gross</p>
+                <p class="text-2xl font-bold text-gray-800 mt-2">{{ fmt_pct(npl_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t border-gray-100">
+                <div><p class="text-xs text-gray-500">YtD</p><p class="text-sm font-bold {% if npl_ytd and npl_ytd <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(npl_ytd) }}</p></div>
+                <div><p class="text-xs text-gray-500">YoY</p><p class="text-sm font-bold {% if npl_yoy and npl_yoy <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(npl_yoy) }}</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download all chart data -->
+          <div class="flex justify-end">
+            <button
+              type="button"
+              class="mt-1 mb-2 text-sm px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+              onclick="downloadAllChartsCsv()"
+            >
+              Download Data (CSV)
+            </button>
+          </div>
+
+          <!-- Mini charts -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="chart-card rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-bold text-gray-800">Tren Aset</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-800 hover:bg-gray-50"
+                  onclick="downloadChartPng('miniAsetChart', 'aset-3-periode.png')"
+                >
+                  Download PNG
+                </button>
+              </div>
+              <canvas id="miniAsetChart" height="180"></canvas>
+            </div>
+            <div class="chart-card rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-bold text-gray-800">Tren Kredit</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('miniKreditChart', 'kredit-3-periode.png')"
+                >
+                  Download PNG
+                </button>
+              </div>
+              <canvas id="miniKreditChart" height="180"></canvas>
+            </div>
+            <div class="chart-card rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-bold text-gray-800">Tren DPK</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('miniDpkChart', 'dpk-3-periode.png')"
+                >
+                  Download PNG
+                </button>                
+              </div>
+              <canvas id="miniDpkChart" height="180"></canvas>
+            </div>
+          </div>
+
+          <!-- Row: Tren Aset/Kredit/DPK + LDR + NPL -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Kiri: Tren Giro, Tabungan, dan Deposito (Tahunan) -->
+            <div class="chart-card rounded-2xl px-4 py-3">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-bold text-gray-800">
+                  Tren Giro, Tabungan, dan Deposito (Tahunan)
+                </p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('trendBarChart', 'giro-tabungan-deposito-tahunan.png')"
+                >
+                  Download PNG
+                </button>              
+              </div>
+              <canvas id="trendBarChart" height="250"></canvas>
+            </div>
+
+            <!-- Kanan: atas LDR, bawah NPL -->
+            <div class="flex flex-col gap-4">
+              <!-- LDR -->
+              <div class="chart-card rounded-2xl px-4 py-3">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-bold text-gray-800">Tren LDR</p>
+                  <button
+                    type="button"
+                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    onclick="downloadChartPng('ldrChart', 'tren-ldr.png')"
+                  >
+                    Download PNG
+                  </button>
+                </div>
+                <canvas id="ldrChart" height="100"></canvas>
+              </div>
+
+              <!-- NPL -->
+              <div class="chart-card rounded-2xl px-4 py-3">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-bold text-gray-800">Tren NPL Gross</p>
+                  <button
+                    type="button"
+                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    onclick="downloadChartPng('nplChart', 'tren-npl-gross.png')"
+                  >
+                    Download PNG
+                  </button>
+                </div>
+                <canvas id="nplChart" height="100"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pie charts -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Share DPK -->
+            <div class="chart-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold text-gray-800">Share DPK</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('dpkShareChart', 'share-dpk.png')"
+                >
+                  Download PNG
+                </button>
+              </div>
+              <div class="flex flex-col items-center justify-center gap-4">
+                <!-- Legend -->
+                <div class="w-full space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-red-500"></span>
+                      <span class="text-xs text-gray-700 font-medium">Giro</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(giro_val) }}
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-emerald-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Tabungan</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(tab_val) }}
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-amber-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Deposito</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(dep_val) }}
+                    </div>
+                  </div>
+                </div>
+                <!-- Pie -->
+                <div class="w-40 h-40 flex items-center justify-center">
+                  <canvas id="dpkShareChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Penyaluran Kredit -->
+            <div class="chart-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold text-gray-800">Penyaluran Kredit</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('kreditUsageChart', 'penyaluran-kredit.png')"
+                >
+                  Download PNG
+                </button>
+              </div>
+              <div class="flex flex-col items-center justify-center gap-4">
+                <!-- Legend -->
+                <div class="w-full space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm" style="background-color: #C41E3A;"></span>
+                      <span class="text-xs text-gray-700 font-medium">Produktif</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(produktif_val) }}
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-pink-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Konsumtif</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(konsumtif_val) }}
+                    </div>
+                  </div>
+                </div>
+            
+                <!-- Pie -->
+                <div class="w-40 h-40 flex items-center justify-center">
+                  <canvas id="kreditUsageChart"></canvas>
+                </div>
+              </div>
+            </div>            
+
+            <!-- Rincian Kredit Produktif -->
+            <div class="chart-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold text-gray-800">Rincian Kredit Produktif</p>
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onclick="downloadChartPng('produktifDetailChart', 'rincian-kredit-produktif.png')"
+                >
+                  Download PNG
+                </button>
+              </div>
+              <div class="flex flex-col items-center justify-center gap-4">
+                <!-- Legend -->
+                <div class="w-full space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-amber-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Modal Kerja</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(mk_val) }}
+                    </div>
+                  </div>
+            
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-cyan-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Investasi</span>
+                    </div>
+                    <div class="text-xs font-semibold text-gray-700">
+                      {{ fmt_rp(inv_val) }}
+                    </div>
+                  </div>
+                </div>
+            
+                <!-- Pie -->
+                <div class="w-40 h-40 flex items-center justify-center">
+                  <canvas id="produktifDetailChart"></canvas>
+                </div>
+              </div>
+            </div>            
+          </div>
+
+          <!-- UMKM -->
+          <section class="space-y-3">
+            <div>
+              <h2 class="text-xl font-bold text-gray-800">Kredit UMKM</h2>
+              <p class="text-sm text-gray-500">Ringkasan kredit & kualitas aset UMKM.</p>
+            </div>
+
+            <!-- KPI UMKM -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div class="card rounded-2xl p-4 border" style="border-color: rgba(196, 30, 58, 0.4);">
+                <p class="text-xs font-semibold text-gray-700">KREDIT UMKM</p>
+                <p class="text-xl font-bold mt-2">{{ fmt_rp_m(umkm_kredit_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_kredit_ytd_class }}">{{ fmt_pct(umkm_kredit_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_kredit_yoy_class }}">{{ fmt_pct(umkm_kredit_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card rounded-2xl p-4 border border-rose-400/40">
+                <p class="text-xs font-semibold text-gray-700">NOMINAL NPL UMKM</p>
+                <p class="text-xl font-bold mt-2">{{ fmt_rp_m(umkm_npl_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_npl_ytd_class }}">{{ fmt_pct(umkm_npl_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_npl_yoy_class }}">{{ fmt_pct(umkm_npl_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card rounded-2xl p-4 border border-orange-400/40">
+                <p class="text-xs font-semibold text-gray-700">NPL NET UMKM</p>
+                <p class="text-xl font-bold mt-2">{{ fmt_rp_m(umkm_npl_net_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_npl_net_ytd_class }}">{{ fmt_pct(umkm_npl_net_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_npl_net_yoy_class }}">{{ fmt_pct(umkm_npl_net_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card rounded-2xl p-4 border border-emerald-400/40">
+                <p class="text-xs font-semibold text-gray-700">JUMLAH REKENING UMKM</p>
+                <p class="text-xl font-bold mt-2">{{ "{:,.0f}".format(umkm_rek_val).replace(",", ".") }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_rek_ytd_class }}">{{ fmt_pct(umkm_rek_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_rek_yoy_class }}">{{ fmt_pct(umkm_rek_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PIE Kredit UMKM vs Non-UMKM + Share Konvensional vs Syariah -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <!-- Kredit UMKM vs Non-UMKM -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-4 text-center">Kredit UMKM vs Non-UMKM</p>
+                <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                  <!-- Non-UMKM -->
+                  <div class="text-center md:text-right md:w-1/3">
+                    <div class="mb-1 flex items-center justify-center md:justify-end gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-amber-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Non-UMKM</span>
+                    </div>
+                    <div class="text-base md:text-lg font-semibold text-gray-700">
+                      Rp {{ "{:,.2f}".format(umkm_pie_non_tril).replace(",", ".") }} Triliun
+                    </div>
+                  </div>
+
+                  <!-- Pie -->
+                  <div class="w-40 h-40 md:w-52 md:h-52 flex items-center justify-center">
+                    <canvas id="umkmSharePie"></canvas>
+                  </div>
+
+                  <!-- UMKM -->
+                  <div class="text-center md:text-left md:w-1/3">
+                    <div class="mb-1 flex items-center justify-center md:justify-start gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-emerald-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">UMKM</span>
+                    </div>
+                    <div class="text-base md:text-lg font-semibold text-gray-700">
+                      Rp {{ "{:,.2f}".format(umkm_pie_umkm_tril).replace(",", ".") }} Triliun
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Share Kredit Konvensional & Syariah -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-4 text-center">
+                  Share Kredit Konvensional &amp; Syariah (Bank Umum)
+                </p>
+
+                <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                  <!-- Konvensional -->
+                  <div class="text-center md:text-right md:w-1/3">
+                    <div class="mb-1 flex items-center justify-center md:justify-end gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm" style="background-color: #C41E3A;"></span>
+                      <span class="text-xs text-gray-700 font-medium">Konvensional</span>
+                    </div>
+                    <div class="text-base md:text-lg font-semibold text-gray-700">
+                      Rp {{ "{:,.2f}".format(ks_konv_tril|default(0)).replace(",", ".") }} Triliun
+                    </div>
+                  </div>
+
+                  <!-- Pie -->
+                  <div class="w-40 h-40 md:w-52 md:h-52 flex items-center justify-center">
+                    <canvas id="ksSharePie"></canvas>
+                  </div>
+
+                  <!-- Syariah -->
+                  <div class="text-center md:text-left md:w-1/3">
+                    <div class="mb-1 flex items-center justify-center md:justify-start gap-2">
+                      <span class="inline-block w-3 h-3 rounded-sm bg-emerald-400"></span>
+                      <span class="text-xs text-gray-700 font-medium">Syariah</span>
+                    </div>
+                    <div class="text-base md:text-lg font-semibold text-gray-700">
+                      Rp {{ "{:,.2f}".format(ks_syar_tril|default(0)).replace(",", ".") }} Triliun
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NPL ratio & KPR -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-3">NPL Ratio UMKM</p>
+                <p class="text-xl font-bold">{{ fmt_pct(umkm_npl_ratio_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_npl_ratio_ytd_class }}">{{ fmt_pct(umkm_npl_ratio_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_npl_ratio_yoy_class }}">{{ fmt_pct(umkm_npl_ratio_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-3">Rata-rata Kredit per Rekening</p>
+                <p class="text-xl font-bold">{{ fmt_rp_m(umkm_kpr_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div>
+                    <p class="text-gray-600">YtD</p>
+                    <p class="font-semibold text-{{ umkm_kpr_ytd_class }}">{{ fmt_pct(umkm_kpr_ytd) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">YoY</p>
+                    <p class="font-semibold text-{{ umkm_kpr_yoy_class }}">{{ fmt_pct(umkm_kpr_yoy) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- UMKM charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-3">Kredit UMKM &amp; NPL Ratio (Tahunan)</p>
+                <canvas id="umkmKreditNplChart" height="220"></canvas>
+              </div>
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-bold text-gray-800 mb-3">Kredit per Rekening UMKM (Tahunan)</p>
+                <canvas id="umkmKprChart" height="220"></canvas>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Iconify for small icons -->
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+
+    <!-- KWD base JS (contains Alpine + helpers) -->
+    <script src="{{ url_for('static', filename='kwd/js/main.js') }}" defer></script>
+    
+    <!-- Alpine.js untuk dropdown -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+      const brand = {
+        primary: '#C41E3A',
+        secondary: '#E63946',
+        slate: '#1e293b',
+        accent: '#A0192F',
+      };
+
+      const miniLabels = {{ mini_labels|tojson }};
+      const miniAset = {{ mini_aset|tojson }};
+      const miniKredit = {{ mini_kredit|tojson }};
+      const miniDpk = {{ mini_dpk|tojson }};
+
+      const allYearLabels = {{ year_labels|tojson }};
+      const allYearGiro   = {{ year_giro_series|tojson }};
+      const allYearTab    = {{ year_tab_series|tojson }};
+      const allYearDep    = {{ year_dep_series|tojson }};
+
+      const startIdx   = Math.max(allYearLabels.length - 3, 0);
+      const yearLabels = allYearLabels.slice(startIdx);
+      const yearGiro   = allYearGiro.slice(startIdx);
+      const yearTab    = allYearTab.slice(startIdx);
+      const yearDep    = allYearDep.slice(startIdx);
+
+      const shareGiro = {{ share_giro|default(0)|round(2) }};
+      const shareTab = {{ share_tab|default(0)|round(2) }};
+      const shareDep = {{ share_dep|default(0)|round(2) }};
+
+      const shareKons = {{ share_kons|default(0)|round(2) }};
+      const shareProd = {{ share_prod|default(0)|round(2) }};
+
+      const shareMk = {{ share_mk|default(0)|round(2) }};
+      const shareInv = {{ share_inv|default(0)|round(2) }};
+
+      /* Nilai absolut untuk 3 pie chart sebelum UMKM */
+      const dpkShareLabels = ['Giro', 'Tabungan', 'Deposito'];
+      const dpkShareValues = [
+        {{ giro_val|default(0) }},
+        {{ tab_val|default(0) }},
+        {{ dep_val|default(0) }},
+      ];
+
+      const kreditUsageLabels = ['Produktif', 'Konsumtif'];
+      const kreditUsageValues = [
+        {{ produktif_val|default(0) }},
+        {{ konsumtif_val|default(0) }},
+      ];
+
+      const produktifDetailLabels = ['Modal Kerja', 'Investasi'];
+      const produktifDetailValues = [
+        {{ mk_val|default(0) }},
+        {{ inv_val|default(0) }},
+      ];
+
+      const nplLabels = {{ npl_labels|tojson }};
+      const nplSeries = {{ npl_series|tojson }};
+      const ldrSeries = {{ ldr_series|tojson }};
+
+      const umkmYearLabels = {{ umkm_year_labels|tojson }};
+      const umkmYearKredit = {{ umkm_year_kredit|tojson }};
+      const umkmYearNplRatio = {{ umkm_year_npl_ratio|tojson }};
+      const umkmYearKpr = {{ umkm_year_kpr|tojson }};
+
+      /* NEW: data pie Kredit UMKM vs Non-UMKM */
+      const umkmShareLabels = {{ umkm_share_labels|tojson }};
+      const umkmShareValues = {{ umkm_share_values|tojson }};
+
+      const ksShareLabels = {{ ks_share_labels|default([])|tojson }};
+      const ksShareValues = {{ ks_share_values|default([])|tojson }};
+
+      Chart.register(ChartDataLabels);
+      Chart.defaults.color = 'black';
+      Chart.defaults.borderColor = '#1f2a44';
+      Chart.defaults.plugins.datalabels = Chart.defaults.plugins.datalabels || {};
+
+      const transparent = (hex, alpha = 0.35) =>
+        hex.startsWith('#')
+          ? `rgba(${parseInt(hex.substr(1, 2), 16)},${parseInt(hex.substr(3, 2), 16)},${parseInt(
+              hex.substr(5, 2), 16
+            )},${alpha})`
+          : hex;
+
+      const makeMiniBarChart = (id, labels, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        new Chart(el, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                data,
+                backgroundColor: transparent(color, 0.35),
+                borderColor: color,
+                borderWidth: 1.5,
+                borderRadius: 10,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            layout: {
+              // ruang ekstra di atas supaya label nggak kepotong
+              padding: {
+                top: 20,
+                right: 8,
+                bottom: 4,
+                left: 4,
+              },
+            },
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                display: true,
+                anchor: 'end',
+                align: 'top',       // di atas batang tapi sedikit masuk
+                offset: -2,         // ditarik sedikit ke bawah
+                clamp: true,
+                formatter: (value) =>
+                  value.toLocaleString('id-ID') + ' T', // triliun
+                font: {
+                  size: 9,
+                  weight: '600',
+                },
+                color: 'black',
+              },
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: {
+                grid: { color: '#1f2937', },
+                ticks: {
+                  callback: (v) => v.toLocaleString('id-ID') + ' T',
+                },
+              },
+            },
+          },
+        });
+      };
+
+      makeMiniBarChart('miniAsetChart', miniLabels, miniAset, brand.primary);
+      makeMiniBarChart('miniKreditChart', miniLabels, miniKredit, '#22d3ee');
+      makeMiniBarChart('miniDpkChart', miniLabels, miniDpk, '#fbbf24');
+
+      (() => {
+        const ctx = document.getElementById('trendBarChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: yearLabels,
+            datasets: [
+              {
+                label: 'Giro (T)',
+                data: yearGiro,
+                backgroundColor: transparent('#60a5fa', 0.5),
+                borderColor: '#60a5fa',
+                borderWidth: 1.5,
+                borderRadius: 6,
+              },
+              {
+                label: 'Tabungan (T)',
+                data: yearTab,
+                backgroundColor: transparent('#22d3ee', 0.5),
+                borderColor: '#22d3ee',
+                borderWidth: 1.5,
+                borderRadius: 6,
+              },
+              {
+                label: 'Deposito (T)',
+                data: yearDep,
+                backgroundColor: transparent('#fbbf24', 0.5),
+                borderColor: '#fbbf24',
+                borderWidth: 1.5,
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            layout: {
+              padding: {
+                top: 20,
+                right: 12,
+                bottom: 8,
+                left: 8,
+              },
+            },
+            plugins: {
+              legend: { position: 'bottom' },
+              datalabels: {
+                display: true,
+                anchor: 'end',
+                align: 'top',
+                offset: -2,
+                clamp: true,
+                formatter: (value) =>
+                  value.toLocaleString('id-ID') + ' T',
+                font: {
+                  size: 10,
+                  weight: '600',
+                },
+                color: 'black',
+              },
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: {
+                grid: { color: '#1f2937' },
+                ticks: {
+                  callback: (v) => v.toLocaleString('id-ID') + ' T',
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      (() => {
+        const ctx = document.getElementById('dpkShareChart');
+        if (!ctx) return;
+
+        const dpkData = dpkShareValues;
+        const dpkTotal = dpkData.reduce((a, b) => a + b, 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: dpkShareLabels,
+            datasets: [
+              {
+                data: dpkData,
+                backgroundColor: ['#60a5fa', '#34d399', '#fbbf24'],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 14, weight: '700' },
+                formatter: (value) => {
+                  if (!dpkTotal) return '0%';
+                  const pct = (value / dpkTotal * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      (() => {
+        const ctx = document.getElementById('kreditUsageChart');
+        if (!ctx) return;
+
+        const kreditData = kreditUsageValues;
+        const kreditTotal = kreditData.reduce((a, b) => a + b, 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: kreditUsageLabels,
+            datasets: [
+              {
+                data: kreditData,
+                backgroundColor: ['#C41E3A', '#E63946'],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 14, weight: '700' },
+                formatter: (value) => {
+                  if (!kreditTotal) return '0%';
+                  const pct = (value / kreditTotal * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      (() => {
+        const ctx = document.getElementById('produktifDetailChart');
+        if (!ctx) return;
+
+        const produktifData = produktifDetailValues;
+        const produktifTotal = produktifData.reduce((a, b) => a + b, 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: produktifDetailLabels,
+            datasets: [
+              {
+                data: produktifData,
+                backgroundColor: ['#fbbf24', '#22d3ee'],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 14, weight: '700' },
+                formatter: (value) => {
+                  if (!produktifTotal) return '0%';
+                  const pct = (value / produktifTotal * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      /* Pie Kredit UMKM vs Non-UMKM */
+      (() => {
+        const ctx = document.getElementById('umkmSharePie');
+        if (!ctx || !umkmShareValues.length) return;
+
+        const total = umkmShareValues.reduce((a, b) => a + b, 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: umkmShareLabels,
+            datasets: [
+              {
+                data: umkmShareValues,
+                backgroundColor: ['#fbbf24', '#22c55e'], // Non-UMKM, UMKM
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 14, weight: '700' },
+                formatter: (value) => {
+                  if (!total) return '0%';
+                  const pct = (value / total * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      /* Pie Share Kredit Konvensional & Syariah */
+      (() => {
+        const ctx = document.getElementById('ksSharePie');
+        if (!ctx || !ksShareValues.length) return;
+
+        const total = ksShareValues.reduce((a, b) => a + b, 0);
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ksShareLabels,
+            datasets: [
+              {
+                data: ksShareValues,
+                backgroundColor: ['#C41E3A', '#22c55e'], // Konvensional, Syariah
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 18, weight: '700' },
+                formatter: (value) => {
+                  if (!total) return '0%';
+                  const pct = (value / total * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      // Chart NPL saja (sumbu dibuat sempit supaya 2–4% kelihatan jelas)
+      (() => {
+        const ctx = document.getElementById('nplChart');
+        if (!ctx) return;
+
+        const nplMin = Math.min(...nplSeries);
+        const nplMax = Math.max(...nplSeries);
+        const pad = 0.5; // buffer 0.5% atas-bawah
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: nplLabels,
+            datasets: [
+              {
+                label: 'Rasio NPL Gross (%)',
+                data: nplSeries,
+                borderColor: '#60a5fa',
+                backgroundColor: transparent('#60a5fa'),
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#0b1224',
+                pointBorderColor: '#60a5fa',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              datalabels: { display: false },
+            },
+            scales: {
+              y: {
+                type: 'linear',
+                position: 'left',
+                grid: { color: '#1f2937' },
+                min: Math.max(0, nplMin - pad),
+                max: nplMax + pad,
+                ticks: {
+                  callback: (v) => `${v.toFixed(1)}%`,
+                },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+      // Chart LDR saja
+      (() => {
+        const ctx = document.getElementById('ldrChart');
+        if (!ctx) return;
+
+        const ldrMin = Math.min(...ldrSeries);
+        const ldrMax = Math.max(...ldrSeries);
+        const pad = 5; // buffer 5%
+
+        const minY = Math.max(0, Math.floor((ldrMin - pad) / 5) * 5);
+        const maxY = Math.ceil((ldrMax + pad) / 5) * 5;
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: nplLabels,
+            datasets: [
+              {
+                label: 'LDR (%)',
+                data: ldrSeries,
+                borderColor: '#A0192F',
+                backgroundColor: transparent('#A0192F'),
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#0b1224',
+                pointBorderColor: '#A0192F',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              datalabels: { display: false },
+            },
+            scales: {
+              y: {
+                type: 'linear',
+                position: 'left',
+                grid: { color: '#1f2937' },
+                min: minY,
+                max: maxY,
+                ticks: {
+                  callback: (v) => `${v}%`,
+                },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+
+      (() => {
+        const ctx = document.getElementById('umkmKreditNplChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+          data: {
+            labels: umkmYearLabels,
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Nominal Kredit UMKM (M)',
+                data: umkmYearKredit,
+                backgroundColor: transparent('#C41E3A', 0.5),
+                borderColor: '#C41E3A',
+                borderWidth: 1.5,
+                borderRadius: 8,
+                yAxisID: 'y',
+              },
+              {
+                type: 'line',
+                label: 'NPL Ratio UMKM (%)',
+                data: umkmYearNplRatio,
+                borderColor: '#E63946',
+                backgroundColor: transparent('#E63946'),
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#0b1224',
+                pointBorderColor: '#E63946',
+                yAxisID: 'y1',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' }, datalabels: { display: false } },
+            scales: {
+              y: { position: 'left', grid: { color: '#1f2937' }, ticks: { callback: (v) => v } },
+              y1: {
+                display: false,
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+      (() => {
+        const ctx = document.getElementById('umkmKprChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: umkmYearLabels,
+            datasets: [
+              {
+                label: 'Kredit per Rekening (M)',
+                data: umkmYearKpr,
+                backgroundColor: transparent('#22d3ee', 0.55),
+                borderColor: '#22d3ee',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' }, datalabels: { display: false } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      })();
+
+      // Theme toggle
+      (() => {
+        const key = 'theme';
+        const btn = document.getElementById('themeToggle');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const initial = localStorage.getItem(key) || (prefersDark ? 'dark' : 'light');
+
+        const applyTheme = (mode) => {
+          const body = document.body;
+          if (mode === 'light') {
+            body.classList.add('theme-light');
+          } else {
+            body.classList.remove('theme-light');
+          }
+          localStorage.setItem(key, mode);
+          if (btn) {
+            btn.querySelector('.iconify')?.setAttribute('data-icon', mode === 'light' ? 'tabler:moon' : 'tabler:sun');
+          }
+        };
+
+        applyTheme(initial);
+        btn?.addEventListener('click', () => {
+          const next = document.body.classList.contains('theme-light') ? 'dark' : 'light';
+          applyTheme(next);
+        });
+      })();
+
+      function downloadChartPng(canvasId, filename) {
+        // Ambil instance Chart.js dari canvas
+        const chart = Chart.getChart(canvasId);
+        const canvas = document.getElementById(canvasId);
+        if (!chart && !canvas) return;
+
+        // Pakai toBase64Image kalau ada instance chart,
+        // fallback ke canvas.toDataURL kalau perlu
+        const dataUrl = chart
+          ? chart.toBase64Image('image/png', 1)
+          : canvas.toDataURL('image/png');
+
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename || (canvasId + '.png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function downloadAllChartsCsv() {
+        const rows = [];
+        rows.push(['Chart', 'Series', 'Label', 'Value']);
+
+        // 1) Mini charts: Aset / Kredit / DPK — 3 periode
+        miniLabels.forEach((label, idx) => {
+          if (miniAset[idx] != null) {
+            rows.push(['Tren Aset', 'Aset (T)', label, miniAset[idx]]);
+          }
+          if (miniKredit[idx] != null) {
+            rows.push(['Tren Kredit', 'Kredit (T)', label, miniKredit[idx]]);
+          }
+          if (miniDpk[idx] != null) {
+            rows.push(['Tren DPK', 'DPK (T)', label, miniDpk[idx]]);
+          }
+        });
+
+        // 2) Tren Giro, Tabungan, dan Deposito (Tahunan)
+        yearLabels.forEach((label, idx) => {
+          if (yearGiro[idx] != null) {
+            rows.push(['Tren Giro, Tabungan, dan Deposito (Tahunan)', 'Giro (T)', label, yearGiro[idx]]);
+          }
+          if (yearTab[idx] != null) {
+            rows.push(['Tren Giro, Tabungan, dan Deposito (Tahunan)', 'Tabungan (T)', label, yearTab[idx]]);
+          }
+          if (yearDep[idx] != null) {
+            rows.push(['Tren Giro, Tabungan, dan Deposito (Tahunan)', 'Deposito (T)', label, yearDep[idx]]);
+          }
+        });
+
+        // 3) Tren LDR & NPL Gross
+        nplLabels.forEach((label, idx) => {
+          if (ldrSeries[idx] != null) {
+            rows.push(['Tren LDR', 'LDR (%)', label, ldrSeries[idx]]);
+          }
+          if (nplSeries[idx] != null) {
+            rows.push(['Tren NPL Gross', 'NPL Gross (%)', label, nplSeries[idx]]);
+          }
+        });
+
+        // 4) Share DPK
+        dpkShareLabels.forEach((label, idx) => {
+          rows.push(['Share DPK', 'Nominal (T)', label, dpkShareValues[idx]]);
+        });
+
+        // 5) Penyaluran Kredit
+        kreditUsageLabels.forEach((label, idx) => {
+          rows.push(['Penyaluran Kredit', 'Nominal (T)', label, kreditUsageValues[idx]]);
+        });
+
+        // 6) Rincian Kredit Produktif
+        produktifDetailLabels.forEach((label, idx) => {
+          rows.push(['Rincian Kredit Produktif', 'Nominal (T)', label, produktifDetailValues[idx]]);
+        });
+
+        const csvContent = rows.map((r) => r.join(',')).join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'dashboard-perbankan-data.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    </script>
+  </body>
+</html>

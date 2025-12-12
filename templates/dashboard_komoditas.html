@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Komoditas & Kredit Lokasi</title>
+
+    <!-- KWD Dashboard skin -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='kwd/css/main.css') }}"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind runtime -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <style>
+      :root {
+        --primary: #994038;
+        --primary-light: #B85A52;
+        --primary-lighter: #D4837C;
+        --primary-dark: #7A3028;
+        --primary-50: #FDF5F4;
+        --primary-100: #FAEAE8;
+      }
+      body {
+        font-family: 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: #F9FAFB;
+      }
+      
+      /* Sidebar styling */
+      .sidebar {
+        background: linear-gradient(180deg, #994038 0%, #7A3028 100%);
+      }
+      
+      /* Filter panel */
+      .filter-panel {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* KPI Cards */
+      .kpi-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+      .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+      }
+      .kpi-card.kpi-primary::before { background: linear-gradient(90deg, #994038, #B85A52); }
+      .kpi-card.kpi-success::before { background: linear-gradient(90deg, #059669, #10B981); }
+      .kpi-card.kpi-warning::before { background: linear-gradient(90deg, #D97706, #F59E0B); }
+      .kpi-card.kpi-danger::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+      .kpi-card.kpi-info::before { background: linear-gradient(90deg, #0891B2, #06B6D4); }
+      
+      /* Legacy card class */
+      .card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Chart cards */
+      .chart-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Glass panel */
+      .glass {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Header gradient text */
+      .text-gradient {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 50%, #994038 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      /* Button styling */
+      .btn-primary {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 100%);
+        box-shadow: 0 2px 8px rgba(153, 64, 56, 0.25);
+        transition: all 0.2s ease;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #7A3028 0%, #994038 100%);
+      }
+      
+      /* Positive/Negative indicators */
+      .indicator-positive { color: #059669; }
+      .indicator-negative { color: #DC2626; }
+      
+      /* Select styling */
+      select:focus {
+        border-color: #994038;
+        box-shadow: 0 0 0 3px rgba(153, 64, 56, 0.1);
+      }
+      
+      /* Text color overrides for light theme */
+      .text-slate-100, .text-slate-200, .text-slate-300 {
+        color: #1f2937 !important;
+      }
+      .text-slate-400 {
+        color: #4b5563 !important;
+      }
+      .text-slate-50 {
+        color: #1f2937 !important;
+      }
+      
+      /* Icon arrow-right: hilangkan box dan buat hitam */
+      [data-icon="tabler:arrow-right"] {
+        color: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      [data-icon="tabler:arrow-right"] svg {
+        fill: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      [data-icon="tabler:arrow-right"] svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+      }
+    </style>
+  </head>
+
+  <body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    {# ---------- MACROS ---------- #}
+    {% macro fmt_num(v) -%}
+      {%- if v is not defined or v is none -%}
+        -
+      {%- else -%}
+        {{ "{:,.0f}".format(v|float).replace(",", ".") }}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro fmt_pct(v) -%}
+      {%- if v is not defined or v is none -%}
+        -
+      {%- else -%}
+        {{ "{:,.2f}%".format(v|float).replace(",", ".") }}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {# --- formatter rupiah singkat (juta/miliar/triliun) --- #}
+    {% macro fmt_rp_singkat(v) -%}
+      {%- if v is not defined or v is none -%}
+        -
+      {%- else -%}
+        {%- set val = v|float %}
+        {%- set absval = val if val >= 0 else -val %}
+        {%- if absval >= 1000000000000 %}
+          {%- set num = val / 1000000000000.0 %}
+          {{ "{:.2f}".format(num).replace(".", ",") }} Triliun
+        {%- elif absval >= 1000000000 %}
+          {%- set num = val / 1000000000.0 %}
+          {{ "{:.2f}".format(num).replace(".", ",") }} Miliar
+        {%- elif absval >= 1000000 %}
+          {%- set num = val / 1000000.0 %}
+          {{ "{:.2f}".format(num).replace(".", ",") }} Juta
+        {%- else %}
+          {{ "{:,.0f}".format(val).replace(",", ".") }}
+        {%- endif %}
+      {%- endif -%}
+    {%- endmacro %}
+
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside
+        class="hidden lg:flex w-64 flex-col"
+        style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);"
+      >
+        <div
+          class="px-6 py-5 flex items-center gap-3 border-b border-slate-800"
+        >
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <!-- Perbankan -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-white hover:opacity-90"
+            href="{{ url_for('dashboard') }}"
+          >
+            <span class="font-semibold">Perbankan</span>
+          </a>
+
+          <!-- Non Bank - Dropdown -->
+          <div class="space-y-1" x-data="{ open: true }">
+            <button
+              @click="open = !open"
+              class="w-full flex items-center justify-between px-3 py-3 rounded-xl text-white hover:opacity-90"
+            >
+              <span>Non Bank</span>
+              <span
+                class="iconify transition-transform duration-200"
+                :class="{ 'rotate-90': open }"
+                data-icon="tabler:arrow-right"
+                style="color: #000000; background: transparent;"
+              ></span>
+            </button>
+
+            <div x-show="open" x-transition class="ml-4 space-y-1 mt-1">
+              <a
+                class="flex items-center px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10"
+                href="{{ url_for('dashboard_dana_pensiun') }}"
+              >
+                <span class="text-sm">Dana Pensiun</span>
+              </a>
+              <a
+                class="flex items-center px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10"
+                href="{{ url_for('dashboard_asuransi') }}"
+              >
+                <span class="text-sm">Asuransi</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Komoditas -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-slate-200 bg-primary/20 border border-primary/40"
+            href="{{ url_for('dashboard_komoditas') }}"
+          >
+            <span>PED</span>
+          </a>
+
+          <!-- Input Data -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-white hover:opacity-90"
+            href="{{ url_for('input_data') }}"
+          >
+            <span>Input Data</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">PED</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Pengembangan Ekonomi Daerah</h1>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-gray-100 border-2" style="color: #EE6983; border-color: #FFC4C4;">
+                <span class="iconify tabler--bell text-lg"></span>
+              </button>
+              <img src="{{ url_for('static', filename='kwd/images/avatar.jpeg') }}" alt="avatar" class="h-10 w-10 rounded-full border-2" style="border-color: #FFC4C4;" />
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-4 sm:px-6 lg:px-10 py-8 space-y-10">
+          <!-- ====================================== -->
+          <!-- 1. FILTER & KPI KOMODITAS             -->
+          <!-- ====================================== -->
+          <section class="space-y-4">
+            <h2 class="text-lg font-bold text-gray-800">
+              Komoditas Pertanian
+            </h2>
+
+            <!-- Filters Komoditas -->
+            <form
+              method="get"
+              class="bg-white rounded-2xl px-6 py-5 border-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end" style="border-color: #FFC4C4;"
+            >
+              <!-- Provinsi -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Provinsi
+                </label>
+                <select
+                  name="provinsi"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for p in provinsi_list %}
+                  <option
+                    value="{{ p }}"
+                    {% if p == provinsi_selected %}selected{% endif %}
+                  >
+                    {{ p }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- Tahun -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Tahun
+                </label>
+                <select
+                  name="tahun"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for t in tahun_list %}
+                  <option
+                    value="{{ t }}"
+                    {% if t|string == tahun_selected %}selected{% endif %}
+                  >
+                    {{ t }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- Klasifikasi Komoditas -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Klasifikasi Komoditas
+                </label>
+                <select
+                  name="klasifikasi"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for k in klasifikasi_list %}
+                  <option
+                    value="{{ k }}"
+                    {% if k == klasifikasi_selected %}selected{% endif %}
+                  >
+                    {{ k }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- Komoditas -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Komoditas
+                </label>
+                <select
+                  name="komoditas"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for k in komoditas_list %}
+                  <option
+                    value="{{ k }}"
+                    {% if k == komoditas_selected %}selected{% endif %}
+                  >
+                    {{ k }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              {# Hidden: pertahankan filter kredit lokasi dan jumlah petani saat komoditas diubah #}
+              <input
+                type="hidden"
+                name="krl_sektor"
+                value="{{ krl_sektor_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="krl_lokasi"
+                value="{{ krl_lokasi_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="petani_provinsi"
+                value="{{ petani_provinsi_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="petani_kabkota"
+                value="{{ petani_kabkota_selected or '' }}"
+              />
+
+              <!-- Tombol -->
+              <div class="flex gap-3 md:col-span-2 lg:col-span-2 justify-end">
+                <button
+                  type="submit"
+                  class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;"
+                >
+                  Terapkan
+                </button>
+                <a
+                  href="{{ url_for('dashboard_komoditas') }}"
+                  class="px-4 py-2.5 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;"
+                >
+                  Reset
+                </a>
+              </div>
+            </form>
+
+            <!-- KPI Komoditas -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <!-- Total Produksi -->
+              <div class="card rounded-2xl p-5 border border-primary/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    TOTAL PRODUKSI
+                  </p>
+                  <p class="text-2xl font-bold mt-2">
+                    {{ fmt_num(kom_total_val) }} {{ kom_unit_label }}
+                  </p>
+                  <p class="text-xs text-slate-400 mt-1">
+                    {{ klasifikasi_selected or 'Semua Klasifikasi' }}
+                    {% if tahun_selected %}• {{ tahun_selected }}{% endif %}
+                    {% if provinsi_selected %} • {{ provinsi_selected }}{% endif %}
+                    {% if komoditas_selected %} • {{ komoditas_selected }}{% endif %}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Komoditas Utama -->
+              <div class="card rounded-2xl p-5 border border-emerald-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    KOMODITAS UTAMA
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ kom_top_komoditas or "-" }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    {{ fmt_num(kom_top_komoditas_val) }} {{ kom_unit_label }}
+                    <span class="text-xs text-slate-400">
+                      ({{ fmt_pct(kom_top_komoditas_share) }} dari total)
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Provinsi Tertinggi -->
+              <div class="card rounded-2xl p-5 border border-amber-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    PROVINSI TERTINGGI
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ kom_top_provinsi or "-" }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    {{ fmt_num(kom_top_provinsi_val) }} {{ kom_unit_label }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Jumlah Komoditas -->
+              <div class="card rounded-2xl p-5 border border-sky-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    JUMLAH KOMODITAS
+                  </p>
+                  <p class="text-2xl font-bold mt-2">
+                    {{ fmt_num(kom_komoditas_count) }}
+                  </p>
+                  <p class="text-xs text-slate-400 mt-1">
+                    Dalam klasifikasi &amp; tahun terpilih
+                    {% if komoditas_selected %}
+                      • Filter: {{ komoditas_selected }}
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts Komoditas -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <!-- Produksi per Komoditas -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top 10 Komoditas –
+                  {{ klasifikasi_selected or 'Semua Klasifikasi' }}
+                  {% if tahun_selected %} ({{ tahun_selected }}){% endif %}
+                  {% if provinsi_selected %}
+                    • {{ provinsi_selected }}
+                  {% else %}
+                    • Semua Provinsi
+                  {% endif %}
+                </p>
+                <canvas id="komKomoditasChart" height="220"></canvas>
+              </div>
+
+              <!-- Produksi per Provinsi -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top 10 Provinsi –
+                  {{ klasifikasi_selected or 'Semua Klasifikasi' }}
+                  {% if tahun_selected %} ({{ tahun_selected }}){% endif %}
+                  {% if komoditas_selected %}
+                    • Komoditas: {{ komoditas_selected }}
+                  {% endif %}
+                </p>
+                <canvas id="komProvChart" height="220"></canvas>
+              </div>
+            </div>
+
+            <!-- Filter & Chart Jumlah Petani -->
+            <div class="space-y-4 mt-6">
+              <h2 class="text-lg font-bold text-gray-800">
+                Jumlah Petani Kelapa
+              </h2>
+
+              <!-- Filters Jumlah Petani -->
+              <form
+                method="get"
+                class="bg-white rounded-2xl px-6 py-5 border-2 flex flex-col md:flex-row gap-4 items-end justify-between" style="border-color: #FFC4C4;"
+              >
+                <div class="flex gap-4 flex-wrap">
+                  <!-- Provinsi -->
+                  <div class="w-full md:w-auto min-w-[200px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                      Provinsi
+                    </label>
+                    <input
+                      type="text"
+                      name="petani_provinsi"
+                      value="Sumatera Selatan"
+                      class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none"
+                      style="border-color: #FFC4C4; color: #374151;"
+                      readonly
+                    />
+                  </div>
+
+                  <!-- Kabupaten/Kota -->
+                  <div class="w-full md:w-auto min-w-[200px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                      Kabupaten/Kota
+                    </label>
+                    <select
+                      name="petani_kabkota"
+                      class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                    >
+                      <option value="">Semua</option>
+                      {% for k in petani_kabkota_list %}
+                      <option
+                        value="{{ k }}"
+                        {% if k == petani_kabkota_selected %}selected{% endif %}
+                      >
+                        {{ k }}
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                {# Hidden: pertahankan filter komoditas dan kredit lokasi saat filter petani diubah #}
+                <input
+                  type="hidden"
+                  name="provinsi"
+                  value="{{ provinsi_selected or '' }}"
+                />
+                <input
+                  type="hidden"
+                  name="tahun"
+                  value="{{ tahun_selected or '' }}"
+                />
+                <input
+                  type="hidden"
+                  name="klasifikasi"
+                  value="{{ klasifikasi_selected or '' }}"
+                />
+                <input
+                  type="hidden"
+                  name="komoditas"
+                  value="{{ komoditas_selected or '' }}"
+                />
+                <input
+                  type="hidden"
+                  name="krl_sektor"
+                  value="{{ krl_sektor_selected or '' }}"
+                />
+                <input
+                  type="hidden"
+                  name="krl_lokasi"
+                  value="{{ krl_lokasi_selected or '' }}"
+                />
+
+                <!-- Tombol -->
+                <div class="flex gap-3">
+                  <button
+                    type="submit"
+                    class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;"
+                  >
+                    Terapkan
+                  </button>
+                  <a
+                    href="{{ url_for('dashboard_komoditas') }}"
+                    class="px-4 py-2.5 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;"
+                  >
+                    Reset
+                  </a>
+                </div>
+              </form>
+
+              <!-- Chart Jumlah Petani -->
+              <div class="grid grid-cols-1 gap-4">
+                <div class="chart-card rounded-2xl p-5">
+                  <p class="text-sm font-semibold text-slate-200 mb-3">
+                    Jumlah Petani Kelapa
+                    {% if petani_provinsi_selected %} – {{ petani_provinsi_selected }}{% endif %}
+                    {% if petani_kabkota_selected %} • {{ petani_kabkota_selected }}{% endif %}
+                  </p>
+                  {% if petani_labels|length > 0 %}
+                    <canvas id="petaniChart" height="150"></canvas>
+                  {% else %}
+                    <p class="mt-6 text-sm text-slate-500">
+                      Data tidak tersedia untuk filter saat ini.
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ====================================== -->
+          <!-- 2. DETAIL KOMODITAS PER KAB/KOTA      -->
+          <!-- ====================================== -->
+          <section class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-slate-300 tracking-wide">
+                Detail Komoditas per Kabupaten/Kota
+              </h2>
+              <p class="text-xs text-slate-400">
+                {% if komoditas_selected %}
+                  Komoditas: {{ komoditas_selected }}
+                {% else %}
+                  Komoditas: Semua
+                {% endif %}
+                {% if provinsi_selected %} • Provinsi: {{ provinsi_selected }}{% endif %}
+              </p>
+            </div>
+
+            <!-- KPI Kab/Kota -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Total produksi & luas -->
+              <div class="card rounded-2xl p-5 border border-primary/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    TOTAL PRODUKSI & LUAS LAHAN
+                  </p>
+                  <p class="text-2xl font-bold mt-2">
+                    {{ fmt_num(kab_total_produksi) }} Ton
+                  </p>
+                  <p class="text-sm mt-1">
+                    Luas lahan: {{ fmt_num(kab_total_luas) }} Ha
+                  </p>
+                  <p class="text-xs text-slate-400 mt-1">
+                    Produktivitas rata-rata:
+                    {{ "{:,.2f}".format(kab_rata_prod_per_ha or 0.0).replace(",", ".") }}
+                    Ton/Ha
+                  </p>
+                </div>
+              </div>
+
+              <!-- Kab/Kota produksi tertinggi -->
+              <div class="card rounded-2xl p-5 border border-emerald-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    KAB/KOTA DENGAN PRODUKSI TERTINGGI
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ kab_top_prod_kab or '-' }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    {{ fmt_num(kab_top_prod_val) }} Ton
+                  </p>
+                </div>
+              </div>
+
+              <!-- Kab/Kota produktivitas tertinggi -->
+              <div class="card rounded-2xl p-5 border border-sky-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    KAB/KOTA DENGAN PRODUKTIVITAS TERTINGGI
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ kab_top_prodperha_kab or '-' }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    {{ "{:,.2f}".format(kab_top_prodperha_val or 0.0).replace(",", ".") }}
+                    Ton/Ha
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts Kab/Kota -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <!-- Top 5 Produksi -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top 5 Kab/Kota – Produksi
+                </p>
+                {% if kab_prod_top_labels|length > 0 %}
+                  <canvas id="kabProdChart" height="220"></canvas>
+                {% else %}
+                  <p class="mt-6 text-sm text-slate-500">
+                    Data tidak tersedia untuk filter saat ini.
+                  </p>
+                {% endif %}
+              </div>
+
+              <!-- Top 5 Luas Lahan -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top 5 Kab/Kota – Luas Lahan
+                </p>
+                {% if kab_luas_top_labels|length > 0 %}
+                  <canvas id="kabLuasChart" height="220"></canvas>
+                {% else %}
+                  <p class="mt-6 text-sm text-slate-500">
+                    Data tidak tersedia untuk filter saat ini.
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Chart Produktivitas di bawahnya -->
+            <div class="grid grid-cols-1 gap-4 mt-4">
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top 5 Kab/Kota – Produktivitas (Ton/Ha)
+                </p>
+                {% if kab_prodperha_top_labels|length > 0 %}
+                  <canvas id="kabProdHaChart" height="90"></canvas>
+                {% else %}
+                  <p class="mt-6 text-sm text-slate-500">
+                    Data tidak tersedia untuk filter saat ini.
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+
+
+          <!-- ====================================== -->
+          <!-- 3. FILTER & KPI KREDIT LOKASI          -->
+          <!-- ====================================== -->
+          <section class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-slate-300 tracking-wide">
+                Kredit Berdasarkan Lokasi
+              </h2>
+              {% if krl_tahun %}
+              <p class="text-xs text-slate-400">
+                Tahun laporan: {{ krl_tahun }} • Bulan laporan:
+                {{ krl_jumlah_bulan or '-' }}
+              </p>
+              {% endif %}
+            </div>
+
+            <!-- Filters Kredit Lokasi -->
+            <form
+              method="get"
+              class="bg-white rounded-2xl px-6 py-5 border-2 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end" style="border-color: #FFC4C4;"
+            >
+              <!-- Sektor -->
+              <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Sektor / Kategori Usaha
+                </label>
+                <select
+                  name="krl_sektor"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for s in krl_sektor_list %}
+                  <option
+                    value="{{ s }}"
+                    {% if s == krl_sektor_selected %}selected{% endif %}
+                  >
+                    {{ s }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- Lokasi -->
+              <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">
+                  Lokasi (Kab/Kota)
+                </label>
+                <select
+                  name="krl_lokasi"
+                  class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+                >
+                  <option value="">Semua</option>
+                  {% for l in krl_lokasi_list %}
+                  <option
+                    value="{{ l }}"
+                    {% if l == krl_lokasi_selected %}selected{% endif %}
+                  >
+                    {{ l }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              {# Hidden: pertahankan filter komoditas dan jumlah petani saat kredit diubah #}
+              <input
+                type="hidden"
+                name="provinsi"
+                value="{{ provinsi_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="tahun"
+                value="{{ tahun_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="klasifikasi"
+                value="{{ klasifikasi_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="komoditas"
+                value="{{ komoditas_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="petani_provinsi"
+                value="{{ petani_provinsi_selected or '' }}"
+              />
+              <input
+                type="hidden"
+                name="petani_kabkota"
+                value="{{ petani_kabkota_selected or '' }}"
+              />
+
+              <!-- Tombol -->
+              <div class="flex gap-3 justify-end">
+                <button
+                  type="submit"
+                  class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;"
+                >
+                  Terapkan
+                </button>
+                <a
+                  href="{{ url_for('dashboard_komoditas') }}"
+                  class="px-4 py-2.5 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;"
+                >
+                  Reset
+                </a>
+              </div>
+            </form>
+
+            <!-- KPI Kredit Lokasi -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Total Kredit -->
+              <div class="card rounded-2xl p-5 border border-primary/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    TOTAL KREDIT (FILTER SAAT INI)
+                  </p>
+                  <p class="text-2xl font-bold mt-2">
+                    Rp {{ fmt_rp_singkat(krl_total_kredit) }}
+                  </p>
+                  <p class="text-xs text-slate-400 mt-1">
+                    {% if krl_sektor_selected %}
+                      Sektor: {{ krl_sektor_selected }} •
+                    {% endif %}
+                    {% if krl_lokasi_selected %}
+                      Lokasi: {{ krl_lokasi_selected }}
+                    {% else %}
+                      Semua Lokasi
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Lokasi Tertinggi -->
+              <div class="card rounded-2xl p-5 border border-emerald-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    LOKASI DENGAN KREDIT TERTINGGI
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ krl_top_lokasi or '-' }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    Rp {{ fmt_rp_singkat(krl_top_lokasi_val) }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Sektor Tertinggi -->
+              <div class="card rounded-2xl p-5 border border-sky-400/40">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 uppercase">
+                    SEKTOR DENGAN KREDIT TERTINGGI
+                  </p>
+                  <p class="text-lg font-bold mt-2">
+                    {{ krl_top_sektor or '-' }}
+                  </p>
+                  <p class="text-sm mt-1">
+                    Rp {{ fmt_rp_singkat(krl_top_sektor_val) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts Kredit Lokasi -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <!-- Kredit per Lokasi -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top Lokasi Berdasarkan Kredit
+                  {% if krl_sektor_selected %}
+                    • Sektor: {{ krl_sektor_selected }}
+                  {% endif %}
+                </p>
+                <canvas id="krlLokasiChart" height="220"></canvas>
+              </div>
+
+              <!-- Kredit per Sektor -->
+              <div class="chart-card rounded-2xl p-5">
+                <p class="text-sm font-semibold text-slate-200 mb-3">
+                  Top Sektor Berdasarkan Kredit
+                  {% if krl_lokasi_selected %}
+                    • Lokasi: {{ krl_lokasi_selected }}
+                  {% endif %}
+                </p>
+                <canvas id="krlSektorChart" height="220"></canvas>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Iconify -->
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <!-- KWD base JS -->
+    <script
+      src="{{ url_for('static', filename='kwd/js/main.js') }}"
+      defer
+    ></script>
+    <!-- Alpine.js -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+
+    <script>
+      const brand = {
+        primary: '#994038',
+        secondary: '#22d3ee',
+        slate: '#1e293b',
+        accent: '#d16b5f',
+      };
+
+      // ---------- Komoditas ----------
+      const komKomLabels = {{ kom_kom_labels|default([], true)|tojson }};
+      const komKomValues = {{ kom_kom_values|default([], true)|tojson }};
+      const komProvLabels = {{ kom_prov_labels|default([], true)|tojson }};
+      const komProvValues = {{ kom_prov_values|default([], true)|tojson }};
+
+      // ---------- Komoditas Kab/Kota ----------
+      const kabProdTopLabels = {{ kab_prod_top_labels|default([], true)|tojson }};
+      const kabProdTopValues = {{ kab_prod_top_values|default([], true)|tojson }};
+      const kabLuasTopLabels = {{ kab_luas_top_labels|default([], true)|tojson }};
+      const kabLuasTopValues = {{ kab_luas_top_values|default([], true)|tojson }};
+      const kabProdHaTopLabels = {{ kab_prodperha_top_labels|default([], true)|tojson }};
+      const kabProdHaTopValues = {{ kab_prodperha_top_values|default([], true)|tojson }};
+
+
+      // ---------- Detail Kab/Kota ----------
+      const kabLabels = {{ kab_labels|default([], true)|tojson }};
+      const kabProdValues = {{ kab_prod_values|default([], true)|tojson }};
+      const kabLuasValues = {{ kab_luas_values|default([], true)|tojson }};
+      const kabProdPerHaValues = {{ kab_prod_per_ha_values|default([], true)|tojson }};
+
+      // ---------- Kredit Lokasi ----------
+      const krlLokasiLabels = {{ krl_lokasi_labels|default([], true)|tojson }};
+      const krlLokasiValues = {{ krl_lokasi_values|default([], true)|tojson }};
+      const krlSektorLabels = {{ krl_sektor_labels|default([], true)|tojson }};
+      const krlSektorValues = {{ krl_sektor_values|default([], true)|tojson }};
+
+      // ---------- Jumlah Petani ----------
+      const petaniLabels = {{ petani_labels|default([], true)|tojson }};
+      const petaniValues = {{ petani_values|default([], true)|tojson }};
+
+      Chart.register(ChartDataLabels);
+      Chart.defaults.color = 'black';
+      Chart.defaults.borderColor = '#1f2a44';
+      Chart.defaults.plugins.datalabels =
+        Chart.defaults.plugins.datalabels || {};
+
+      const transparent = (hex, alpha = 0.35) =>
+        hex.startsWith('#')
+          ? `rgba(${parseInt(hex.substr(1, 2), 16)},${parseInt(
+              hex.substr(3, 2),
+              16
+            )},${parseInt(hex.substr(5, 2), 16)},${alpha})`
+          : hex;
+
+      // Bar: Produksi per Komoditas
+      (() => {
+        const ctx = document.getElementById('komKomoditasChart');
+        if (!ctx || !komKomLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: komKomLabels,
+            datasets: [
+              {
+                label: 'Produksi',
+                data: komKomValues,
+                backgroundColor: transparent('#22c55e', 0.6),
+                borderColor: '#22c55e',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxRotation: 60, minRotation: 30 },
+              },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      })();
+
+      // Bar horizontal: Produksi per Provinsi
+      (() => {
+        const ctx = document.getElementById('komProvChart');
+        if (!ctx || !komProvLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: komProvLabels,
+            datasets: [
+              {
+                label: 'Produksi',
+                data: komProvValues,
+                backgroundColor: transparent('#6366f1', 0.6),
+                borderColor: '#6366f1',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: { grid: { color: '#1f2937' } },
+              y: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+      // Bar: Jumlah Petani
+      (() => {
+        const ctx = document.getElementById('petaniChart');
+        if (!ctx || !petaniLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: petaniLabels,
+            datasets: [
+              {
+                label: 'Jumlah Petani',
+                data: petaniValues,
+                backgroundColor: transparent('#8b5cf6', 0.6),
+                borderColor: '#8b5cf6',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxRotation: 45, minRotation: 0 },
+              },
+              y: { 
+                grid: { color: '#1f2937' },
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      })();
+
+      // Bar: Top 5 Produksi per Kab/Kota
+      (() => {
+        const ctx = document.getElementById('kabProdChart');
+        if (!ctx || !kabProdTopLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: kabProdTopLabels,
+            datasets: [
+              {
+                label: 'Produksi (Ton)',
+                data: kabProdTopValues,
+                backgroundColor: transparent('#22c55e', 0.6),
+                borderColor: '#22c55e',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxRotation: 45, minRotation: 0 },
+              },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      })();
+
+      // Bar: Top 5 Luas Lahan per Kab/Kota
+      (() => {
+        const ctx = document.getElementById('kabLuasChart');
+        if (!ctx || !kabLuasTopLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: kabLuasTopLabels,
+            datasets: [
+              {
+                label: 'Luas Lahan (Ha)',
+                data: kabLuasTopValues,
+                backgroundColor: transparent('#3b82f6', 0.6),
+                borderColor: '#3b82f6',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxRotation: 45, minRotation: 0 },
+              },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      })();
+
+      // Bar horizontal: Top 5 Produktivitas (Ton/Ha) per Kab/Kota
+      (() => {
+        const ctx = document.getElementById('kabProdHaChart');
+        if (!ctx || !kabProdHaTopLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: kabProdHaTopLabels,
+            datasets: [
+              {
+                label: 'Produktivitas (Ton/Ha)',
+                data: kabProdHaTopValues,
+                backgroundColor: transparent('#f97316', 0.6),
+                borderColor: '#f97316',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: { grid: { color: '#1f2937' } },
+              y: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+
+      // Bar: Kredit per Lokasi
+      (() => {
+        const ctx = document.getElementById('krlLokasiChart');
+        if (!ctx || !krlLokasiLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: krlLokasiLabels,
+            datasets: [
+              {
+                label: 'Kredit',
+                data: krlLokasiValues,
+                backgroundColor: transparent('#f97316', 0.6),
+                borderColor: '#f97316',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: { grid: { color: '#1f2937' } },
+              y: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+      // Bar: Kredit per Sektor
+      (() => {
+        const ctx = document.getElementById('krlSektorChart');
+        if (!ctx || !krlSektorLabels.length) return;
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: krlSektorLabels,
+            datasets: [
+              {
+                label: 'Kredit',
+                data: krlSektorValues,
+                backgroundColor: transparent('#10b981', 0.6),
+                borderColor: '#10b981',
+                borderWidth: 1.5,
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxRotation: 60, minRotation: 30 },
+              },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      })();
+
+      // Theme toggle (dark / light)
+      (() => {
+        const key = 'theme';
+        const btn = document.getElementById('themeToggle');
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const initial =
+          localStorage.getItem(key) || (prefersDark ? 'dark' : 'light');
+
+        const applyTheme = (mode) => {
+          const body = document.body;
+          if (mode === 'light') {
+            body.classList.add('theme-light');
+          } else {
+            body.classList.remove('theme-light');
+          }
+          localStorage.setItem(key, mode);
+          if (btn) {
+            btn
+              .querySelector('.iconify')
+              ?.setAttribute(
+                'data-icon',
+                mode === 'light' ? 'tabler:moon' : 'tabler:sun'
+              );
+          }
+        };
+
+        applyTheme(initial);
+        btn?.addEventListener('click', () => {
+          const next = document.body.classList.contains('theme-light')
+            ? 'dark'
+            : 'light';
+          applyTheme(next);
+        });
+      })();
+    </script>
+  </body>
+</html>

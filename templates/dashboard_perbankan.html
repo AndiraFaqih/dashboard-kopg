@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Perbankan</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#850E35',
+              'primary-light': '#EE6983',
+              'primary-lighter': '#FFC4C4',
+              'cream': '#FCF5EE',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+      body { font-family: 'Inter', system-ui, sans-serif; background-color: #FCF5EE; }
+      .kpi-card { position: relative; overflow: hidden; background: #FFFFFF; border: 2px solid #FFC4C4; }
+      .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+      }
+      .kpi-card.kpi-primary::before { background: linear-gradient(90deg, #850E35, #EE6983); }
+      .kpi-card.kpi-success::before { background: linear-gradient(90deg, #059669, #10B981); }
+      .kpi-card.kpi-warning::before { background: linear-gradient(90deg, #D97706, #F59E0B); }
+      .kpi-card.kpi-danger::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+      
+      /* Button styles */
+      button[style*="background-color: #850E35"]:hover {
+        background-color: #6B0B2A !important;
+        transform: translateY(-1px);
+      }
+      button[style*="background-color: #EE6983"]:hover {
+        background-color: #D85A6F !important;
+        transform: translateY(-1px);
+      }
+      
+      /* Chart container */
+      canvas {
+        max-height: 100% !important;
+      }
+      
+      /* Force semua text di chart menjadi hitam */
+      .chartjs-render-monitor,
+      .chartjs-render-monitor *,
+      canvas + *,
+      [class*="chartjs"],
+      div[class*="chart"] {
+        color: #000000 !important;
+      }
+      
+      /* Override untuk semua text di chart container */
+      canvas {
+        color: #000000 !important;
+      }
+      
+      /* Force SVG text menjadi hitam */
+      svg text {
+        fill: #000000 !important;
+        color: #000000 !important;
+      }
+      
+      /* Override untuk tooltip */
+      .chartjs-tooltip,
+      .chartjs-tooltip * {
+        color: #000000 !important;
+      }
+      
+      /* Force semua text di dalam chart container */
+      [id*="Chart"] + *,
+      [id*="chart"] + * {
+        color: #000000 !important;
+      }
+      
+      /* Override untuk semua text elements */
+      text {
+        fill: #000000 !important;
+      }
+      
+      /* Icon arrow-right: hilangkan box dan buat hitam */
+      [data-icon="tabler:arrow-right"] {
+        color: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      [data-icon="tabler:arrow-right"] svg {
+        fill: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      [data-icon="tabler:arrow-right"] svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+      }
+    </style>
+  </head>
+
+  <body class="antialiased min-h-screen">
+    {% macro fmt_rp(v) -%}
+      {%- if v is not none -%}Rp {{ "{:,.2f}".format(v).replace(",", ".") }} T{%- else -%}-{%- endif -%}
+    {%- endmacro %}
+    {% macro fmt_rp_m(v) -%}
+      {%- if v is not none -%}Rp {{ "{:,.2f}".format(v).replace(",", ".") }} M{%- else -%}-{%- endif -%}
+    {%- endmacro %}
+    {% macro fmt_pct(v) -%}
+      {%- if v is not none -%}{{ "{:,.2f}%".format(v).replace(",", ".") }}{%- else -%}-{%- endif -%}
+    {%- endmacro %}
+
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="hidden lg:flex w-64 flex-col" style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);">
+        <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800">
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a class="flex items-center px-4 py-3 rounded-xl text-white font-semibold" style="background: rgba(255,255,255,0.2);" href="{{ url_for('dashboard') }}">
+            <span>Perbankan</span>
+          </a>
+          
+          <div class="space-y-1" x-data="{ open: false }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+              <span>Non Bank</span>
+              <span class="iconify transition-transform duration-200" :class="{'rotate-90': open}" data-icon="tabler:arrow-right" style="color: #000000; background: transparent;"></span>
+            </button>
+            <div x-show="open" x-transition class="ml-4 space-y-1 mt-1">
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_dana_pensiun') }}">
+                <span class="text-sm">Dana Pensiun</span>
+              </a>
+              <a class="flex items-center px-4 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_asuransi') }}">
+                <span class="text-sm">Asuransi</span>
+              </a>
+            </div>
+          </div>
+          
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('dashboard_komoditas') }}">
+            <span>Komoditas</span>
+          </a>
+          
+          <a class="flex items-center px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10" href="{{ url_for('input_data') }}">
+            <span>Input Data</span>
+          </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-white/20">
+          <p class="text-xs text-center" style="color: rgba(255,255,255,0.5);">© 2024 K-WD Dashboard</p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Perbankan</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Perbankan</h1>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-gray-100 border" style="color: #EE6983; border-color: #FFC4C4;">
+                <span class="iconify tabler--bell text-lg"></span>
+              </button>
+              <img src="{{ url_for('static', filename='kwd/images/avatar.jpeg') }}" alt="avatar" class="h-10 w-10 rounded-full border-2" style="border-color: #FFC4C4;" />
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-6 lg:px-10 py-6 space-y-6">
+          <!-- Filters -->
+          <form method="get" class="bg-white rounded-2xl px-6 py-5 border-2" style="border-color: #FFC4C4;">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+              <div>
+                <label class="block text-xs font-semibold mb-2" style="color: #850E35;">Negara</label>
+                <select name="negara" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                  <option value="">Semua</option>
+                  {% for n in negara_list %}<option value="{{ n }}" {% if n == negara_selected %}selected{% endif %}>{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-2" style="color: #850E35;">Provinsi</label>
+                <select name="provinsi" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                  <option value="">Semua</option>
+                  {% for p in provinsi_list %}<option value="{{ p }}" {% if p == provinsi_selected %}selected{% endif %}>{{ p }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-2" style="color: #850E35;">Tahun</label>
+                <select name="tahun" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                  <option value="">Semua</option>
+                  {% for t in tahun_list %}<option value="{{ t }}" {% if t|string == tahun_selected %}selected{% endif %}>{{ t }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-2" style="color: #850E35;">Bulan</label>
+                <select name="bulan" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                  <option value="">Semua</option>
+                  {% for b in bulan_list %}<option value="{{ b }}" {% if b|string == bulan_selected %}selected{% endif %}>{{ "%02d"|format(b) }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-2" style="color: #850E35;">Rentang Waktu</label>
+                <select name="interval" class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;">
+                  <option value="bulanan" {% if interval_selected=='bulanan' %}selected{% endif %}>Bulanan</option>
+                  <option value="triwulan" {% if interval_selected=='triwulan' %}selected{% endif %}>Triwulan</option>
+                  <option value="semesteran" {% if interval_selected=='semesteran' %}selected{% endif %}>Semesteran</option>
+                  <option value="tahunan" {% if interval_selected=='tahunan' %}selected{% endif %}>Tahunan</option>
+                </select>
+              </div>
+              <div class="flex gap-3">
+                <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;">Terapkan</button>
+                <a href="{{ url_for('dashboard') }}" class="px-4 py-2.5 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;">Reset</a>
+              </div>
+            </div>
+          </form>
+
+          <!-- KPI cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div class="kpi-card kpi-primary rounded-2xl p-5">
+              <div>
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Total Aset</p>
+                <p class="text-2xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp(aset_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t" style="border-color: #FFC4C4;">
+                <div><p class="text-xs" style="color: #6B7280;">YtD</p><p class="text-sm font-bold {% if aset_ytd and aset_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(aset_ytd) }}</p></div>
+                <div><p class="text-xs" style="color: #6B7280;">YoY</p><p class="text-sm font-bold {% if aset_yoy and aset_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(aset_yoy) }}</p></div>
+              </div>
+            </div>
+            <div class="kpi-card kpi-success rounded-2xl p-5">
+              <div>
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Total Kredit</p>
+                <p class="text-2xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp(kredit_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t" style="border-color: #FFC4C4;">
+                <div><p class="text-xs" style="color: #6B7280;">YtD</p><p class="text-sm font-bold {% if kredit_ytd and kredit_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(kredit_ytd) }}</p></div>
+                <div><p class="text-xs" style="color: #6B7280;">YoY</p><p class="text-sm font-bold {% if kredit_yoy and kredit_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(kredit_yoy) }}</p></div>
+              </div>
+            </div>
+            <div class="kpi-card kpi-warning rounded-2xl p-5">
+              <div>
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Total DPK</p>
+                <p class="text-2xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp(dpk_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t" style="border-color: #FFC4C4;">
+                <div><p class="text-xs" style="color: #6B7280;">YtD</p><p class="text-sm font-bold {% if dpk_ytd and dpk_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(dpk_ytd) }}</p></div>
+                <div><p class="text-xs" style="color: #6B7280;">YoY</p><p class="text-sm font-bold {% if dpk_yoy and dpk_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(dpk_yoy) }}</p></div>
+              </div>
+            </div>
+            <div class="kpi-card kpi-danger rounded-2xl p-5">
+              <div>
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Rasio NPL Gross</p>
+                <p class="text-2xl font-bold mt-2" style="color: #850E35;">{{ fmt_pct(npl_val) }}</p>
+              </div>
+              <div class="flex gap-6 mt-4 pt-4 border-t" style="border-color: #FFC4C4;">
+                <div><p class="text-xs" style="color: #6B7280;">YtD</p><p class="text-sm font-bold {% if npl_ytd and npl_ytd <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(npl_ytd) }}</p></div>
+                <div><p class="text-xs" style="color: #6B7280;">YoY</p><p class="text-sm font-bold {% if npl_yoy and npl_yoy <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(npl_yoy) }}</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download CSV Button -->
+          <div class="flex justify-end mb-4">
+            <button type="button" onclick="downloadAllChartsCsv()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg" style="background-color: #850E35; hover:background-color: #6B0B2A;">
+              <span class="iconify tabler--file-download inline mr-2 text-base"></span>
+              Download Data (CSV)
+            </button>
+          </div>
+
+          <!-- Mini charts -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold" style="color: #850E35;">Tren Aset</p>
+                <button type="button" onclick="downloadChartPng('miniAsetChart', 'aset-3-periode.png')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:shadow-md" style="background-color: #EE6983;" onmouseover="this.style.backgroundColor='#D85A6F'" onmouseout="this.style.backgroundColor='#EE6983'">
+                  <span class="iconify tabler--download inline mr-1"></span>
+                  Download PNG
+                </button>
+              </div>
+              <canvas id="miniAsetChart" height="180"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold" style="color: #850E35;">Tren Kredit</p>
+                <button type="button" onclick="downloadChartPng('miniKreditChart', 'kredit-3-periode.png')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:shadow-md" style="background-color: #EE6983;" onmouseover="this.style.backgroundColor='#D85A6F'" onmouseout="this.style.backgroundColor='#EE6983'">
+                  <span class="iconify tabler--download inline mr-1"></span>
+                  Download PNG
+                </button>
+              </div>
+              <canvas id="miniKreditChart" height="180"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-bold" style="color: #850E35;">Tren DPK</p>
+                <button type="button" onclick="downloadChartPng('miniDpkChart', 'dpk-3-periode.png')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:shadow-md" style="background-color: #EE6983;" onmouseover="this.style.backgroundColor='#D85A6F'" onmouseout="this.style.backgroundColor='#EE6983'">
+                  <span class="iconify tabler--download inline mr-1"></span>
+                  Download PNG
+                </button>
+              </div>
+              <canvas id="miniDpkChart" height="180"></canvas>
+            </div>
+          </div>
+
+          <!-- Trend -->
+          <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+            <p class="text-sm font-bold mb-4" style="color: #850E35;">Tren Aset, Kredit, dan DPK (Tahunan)</p>
+            <canvas id="trendBarChart" height="100"></canvas>
+          </div>
+
+          <!-- Pie charts -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <p class="text-sm font-bold mb-4" style="color: #850E35;">Share DPK</p>
+              <canvas id="dpkShareChart" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <p class="text-sm font-bold mb-4" style="color: #850E35;">Penyaluran Kredit</p>
+              <canvas id="kreditUsageChart" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+              <p class="text-sm font-bold mb-4" style="color: #850E35;">Rincian Kredit Produktif</p>
+              <canvas id="produktifDetailChart" height="200"></canvas>
+            </div>
+          </div>
+
+          <!-- Tren NPL & LDR -->
+          <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+            <p class="text-sm font-bold mb-4" style="color: #850E35;">Tren NPL Gross &amp; LDR</p>
+            <canvas id="nplLdrChart" height="180"></canvas>
+          </div>
+
+          <!-- UMKM Section -->
+          <section class="space-y-5">
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded-xl flex items-center justify-center" style="background-color: #FFC4C4;">
+                <span class="iconify tabler--building-store text-xl" style="color: #850E35;"></span>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold" style="color: #850E35;">Kredit UMKM</h2>
+                <p class="text-sm" style="color: #6B7280;">Ringkasan kredit & kualitas aset UMKM</p>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <div class="kpi-card kpi-primary rounded-2xl p-5">
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Kredit UMKM</p>
+                <p class="text-xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp_m(umkm_kredit_val) }}</p>
+                <div class="flex gap-4 mt-3 pt-3 border-t text-xs" style="border-color: #FFC4C4;">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_kredit_ytd and umkm_kredit_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_kredit_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_kredit_yoy and umkm_kredit_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_kredit_yoy) }}</p></div>
+                </div>
+              </div>
+              <div class="kpi-card kpi-danger rounded-2xl p-5">
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Nominal NPL UMKM</p>
+                <p class="text-xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp_m(umkm_npl_val) }}</p>
+                <div class="flex gap-4 mt-3 pt-3 border-t text-xs" style="border-color: #FFC4C4;">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_npl_ytd and umkm_npl_ytd <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_npl_yoy and umkm_npl_yoy <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_yoy) }}</p></div>
+                </div>
+              </div>
+              <div class="kpi-card kpi-warning rounded-2xl p-5">
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">NPL Net UMKM</p>
+                <p class="text-xl font-bold mt-2" style="color: #850E35;">{{ fmt_rp_m(umkm_npl_net_val) }}</p>
+                <div class="flex gap-4 mt-3 pt-3 border-t text-xs" style="border-color: #FFC4C4;">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_npl_net_ytd and umkm_npl_net_ytd <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_net_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_npl_net_yoy and umkm_npl_net_yoy <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_net_yoy) }}</p></div>
+                </div>
+              </div>
+              <div class="kpi-card kpi-success rounded-2xl p-5">
+                <p class="text-xs font-semibold uppercase" style="color: #6B7280;">Jumlah Rekening</p>
+                <p class="text-xl font-bold mt-2" style="color: #850E35;">{{ "{:,.0f}".format(umkm_rek_val).replace(",", ".") }}</p>
+                <div class="flex gap-4 mt-3 pt-3 border-t text-xs" style="border-color: #FFC4C4;">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_rek_ytd and umkm_rek_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_rek_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_rek_yoy and umkm_rek_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_rek_yoy) }}</p></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+                <p class="text-sm font-bold mb-2" style="color: #850E35;">NPL Ratio UMKM</p>
+                <p class="text-2xl font-bold" style="color: #850E35;">{{ fmt_pct(umkm_npl_ratio_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_npl_ratio_ytd and umkm_npl_ratio_ytd <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_ratio_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_npl_ratio_yoy and umkm_npl_ratio_yoy <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_npl_ratio_yoy) }}</p></div>
+                </div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+                <p class="text-sm font-bold mb-2" style="color: #850E35;">Rata-rata Kredit per Rekening</p>
+                <p class="text-2xl font-bold" style="color: #850E35;">{{ fmt_rp_m(umkm_kpr_val) }}</p>
+                <div class="flex gap-4 mt-3 text-xs">
+                  <div><p style="color: #6B7280;">YtD</p><p class="font-bold {% if umkm_kpr_ytd and umkm_kpr_ytd >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_kpr_ytd) }}</p></div>
+                  <div><p style="color: #6B7280;">YoY</p><p class="font-bold {% if umkm_kpr_yoy and umkm_kpr_yoy >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ fmt_pct(umkm_kpr_yoy) }}</p></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+                <p class="text-sm font-bold mb-4" style="color: #850E35;">Kredit UMKM &amp; NPL Ratio</p>
+                <canvas id="umkmKreditNplChart" height="220"></canvas>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border-2" style="border-color: #FFC4C4;">
+                <p class="text-sm font-bold mb-4" style="color: #850E35;">Kredit per Rekening UMKM</p>
+                <canvas id="umkmKprChart" height="220"></canvas>
+              </div>
+            </div>
+          </section>
+        </main>
+        
+        <footer class="border-t bg-white py-4 px-6 lg:px-10" style="border-color: #FFC4C4;">
+          <div class="text-center text-sm" style="color: #9CA3AF;">© 2024 Dashboard Keuangan</div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+      const colors = { primary: '#850E35', pink: '#EE6983', lightPink: '#FFC4C4', green: '#059669', amber: '#D97706', rose: '#E11D48', cyan: '#0891B2' };
+      const miniLabels = {{ mini_labels|tojson }};
+      const miniAset = {{ mini_aset|tojson }};
+      const miniKredit = {{ mini_kredit|tojson }};
+      const miniDpk = {{ mini_dpk|tojson }};
+      const yearLabels = {{ year_labels|tojson }};
+      const yearAset = {{ year_aset_series|tojson }};
+      const yearKredit = {{ year_kredit_series|tojson }};
+      const yearDpk = {{ year_dpk_series|tojson }};
+      const shareGiro = {{ share_giro|default(0)|round(2) }};
+      const shareTab = {{ share_tab|default(0)|round(2) }};
+      const shareDep = {{ share_dep|default(0)|round(2) }};
+      const shareKons = {{ share_kons|default(0)|round(2) }};
+      const shareProd = {{ share_prod|default(0)|round(2) }};
+      const shareMk = {{ share_mk|default(0)|round(2) }};
+      const shareInv = {{ share_inv|default(0)|round(2) }};
+      // Ambil data langsung dari backend (tanpa hardcode, tanpa perhitungan)
+      let nplLabels = {{ npl_labels|tojson }};
+      let nplSeries = {{ npl_series|tojson }};
+      let ldrSeries = {{ ldr_series|tojson }};
+      
+      // Pastikan panjang array sama (jika data ada)
+      if (nplLabels && nplLabels.length > 0 && nplSeries && nplSeries.length > 0 && ldrSeries && ldrSeries.length > 0) {
+        const minLength = Math.min(nplLabels.length, nplSeries.length, ldrSeries.length);
+        nplLabels = nplLabels.slice(0, minLength);
+        nplSeries = nplSeries.slice(0, minLength);
+        ldrSeries = ldrSeries.slice(0, minLength);
+        console.log("📊 NPL/LDR Data dari database:", { labels: nplLabels, npl: nplSeries, ldr: ldrSeries });
+      } else {
+        console.warn("⚠️  Data NPL/LDR kosong dari database");
+        nplLabels = [];
+        nplSeries = [];
+        ldrSeries = [];
+      }
+      const umkmYearLabels = {{ umkm_year_labels|tojson }};
+      const umkmYearKredit = {{ umkm_year_kredit|tojson }};
+      const umkmYearNplRatio = {{ umkm_year_npl_ratio|tojson }};
+      const umkmYearKpr = {{ umkm_year_kpr|tojson }};
+
+      Chart.register(ChartDataLabels);
+      
+      // Set default colors untuk semua text hitam - OVERRIDE SEMUA
+      Chart.defaults.color = '#000000';
+      Chart.defaults.borderColor = '#FFC4C4';
+      Chart.defaults.font.family = "'Inter', sans-serif";
+      Chart.defaults.font.size = 12;
+      Chart.defaults.font.weight = '600';
+      Chart.defaults.font.color = '#000000';
+      
+      // Override untuk scales - FORCE HITAM
+      if (!Chart.defaults.scales) Chart.defaults.scales = {};
+      if (!Chart.defaults.scales.linear) Chart.defaults.scales.linear = {};
+      if (!Chart.defaults.scales.linear.ticks) Chart.defaults.scales.linear.ticks = {};
+      Chart.defaults.scales.linear.ticks.color = '#000000';
+      Chart.defaults.scales.linear.ticks.font = { color: '#000000', weight: '600', size: 11 };
+      
+      if (!Chart.defaults.scales.category) Chart.defaults.scales.category = {};
+      if (!Chart.defaults.scales.category.ticks) Chart.defaults.scales.category.ticks = {};
+      Chart.defaults.scales.category.ticks.color = '#000000';
+      Chart.defaults.scales.category.ticks.font = { color: '#000000', weight: '600', size: 11 };
+      
+      if (!Chart.defaults.scales.time) Chart.defaults.scales.time = {};
+      if (!Chart.defaults.scales.time.ticks) Chart.defaults.scales.time.ticks = {};
+      Chart.defaults.scales.time.ticks.color = '#000000';
+      Chart.defaults.scales.time.ticks.font = { color: '#000000', weight: '600', size: 11 };
+      
+      // Override untuk plugins - FORCE HITAM
+      if (!Chart.defaults.plugins) Chart.defaults.plugins = {};
+      if (!Chart.defaults.plugins.legend) Chart.defaults.plugins.legend = {};
+      if (!Chart.defaults.plugins.legend.labels) Chart.defaults.plugins.legend.labels = {};
+      Chart.defaults.plugins.legend.labels.color = '#000000';
+      Chart.defaults.plugins.legend.labels.font = { color: '#000000', weight: '600', size: 12 };
+      
+      if (!Chart.defaults.plugins.tooltip) Chart.defaults.plugins.tooltip = {};
+      Chart.defaults.plugins.tooltip.titleColor = '#000000';
+      Chart.defaults.plugins.tooltip.bodyColor = '#000000';
+      Chart.defaults.plugins.tooltip.titleFont = { color: '#000000', weight: '600' };
+      Chart.defaults.plugins.tooltip.bodyFont = { color: '#000000', weight: '500' };
+      
+      const transparent = (hex, alpha = 0.3) => {
+        const r = parseInt(hex.substr(1,2),16);
+        const g = parseInt(hex.substr(3,2),16);
+        const b = parseInt(hex.substr(5,2),16);
+        return `rgba(${r},${g},${b},${alpha})`;
+      };
+
+      const makeBarChart = (id, labels, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const chart = new Chart(el, {
+          type: 'bar',
+          data: { 
+            labels, 
+            datasets: [{ 
+              data, 
+              backgroundColor: transparent(color, 0.4), 
+              borderColor: color, 
+              borderWidth: 2, 
+              borderRadius: 8 
+            }] 
+          },
+          options: { 
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              onComplete: function() {
+                ensureBlackText(this);
+              }
+            },
+            plugins: { 
+              legend: { display: false }, 
+              tooltip: {
+                titleColor: '#000000',
+                bodyColor: '#000000',
+                backgroundColor: '#FFFFFF',
+                borderColor: color,
+                borderWidth: 2,
+                titleFont: { color: '#000000', weight: '600' },
+                bodyFont: { color: '#000000', weight: '500' }
+              },
+              datalabels: { 
+                display: true,
+                color: '#000000',
+                anchor: 'end',
+                align: 'top',
+                font: { 
+                  weight: 'bold',
+                  size: 11,
+                  color: '#000000'
+                },
+                formatter: (value) => {
+                  if (value >= 1000000) return (value / 1000000).toFixed(2) + ' T';
+                  if (value >= 1000) return (value / 1000).toFixed(2) + ' M';
+                  return value.toFixed(2);
+                }
+              } 
+            }, 
+            scales: { 
+              x: { 
+                grid: { display: false, color: '#FFC4C4' },
+                ticks: { 
+                  color: '#000000 !important',
+                  font: { 
+                    family: "'Inter', sans-serif",
+                    size: 11,
+                    weight: '600',
+                    color: '#000000'
+                  },
+                  callback: function(value) {
+                    return this.getLabelForValue(value);
+                  }
+                },
+                title: { 
+                  display: false
+                }
+              }, 
+              y: { 
+                grid: { color: '#FFC4C4', lineWidth: 1 },
+                ticks: { 
+                  color: '#000000 !important',
+                  font: { 
+                    family: "'Inter', sans-serif",
+                    size: 11,
+                    weight: '600',
+                    color: '#000000'
+                  },
+                  callback: function(value) {
+                    if (value >= 1000000) return (value / 1000000).toFixed(1) + ' T';
+                    if (value >= 1000) return (value / 1000).toFixed(1) + ' M';
+                    return value;
+                  }
+                },
+                title: { 
+                  display: false
+                }
+              } 
+            } 
+          }
+        });
+        return chart;
+      };
+
+      makeBarChart('miniAsetChart', miniLabels, miniAset, colors.primary);
+      makeBarChart('miniKreditChart', miniLabels, miniKredit, colors.pink);
+      makeBarChart('miniDpkChart', miniLabels, miniDpk, colors.lightPink);
+      
+      // Ensure black text untuk mini charts
+      setTimeout(() => {
+        ['miniAsetChart', 'miniKreditChart', 'miniDpkChart'].forEach(id => {
+          const chart = Chart.getChart(id);
+          if (chart) ensureBlackText(chart);
+        });
+      }, 300);
+
+      const trendChart = new Chart(document.getElementById('trendBarChart'), {
+        type: 'bar',
+        data: { 
+          labels: yearLabels, 
+          datasets: [
+            { label: 'Aset (T)', data: yearAset, backgroundColor: transparent(colors.primary, 0.4), borderColor: colors.primary, borderWidth: 2, borderRadius: 6 },
+            { label: 'Kredit (T)', data: yearKredit, backgroundColor: transparent(colors.pink, 0.4), borderColor: colors.pink, borderWidth: 2, borderRadius: 6 },
+            { label: 'DPK (T)', data: yearDpk, backgroundColor: transparent(colors.lightPink, 0.4), borderColor: colors.lightPink, borderWidth: 2, borderRadius: 6 }
+          ]
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            onComplete: function() {
+              this.options.scales.x.ticks.color = '#000000';
+              this.options.scales.y.ticks.color = '#000000';
+              this.options.plugins.legend.labels.color = '#000000';
+              this.update('none');
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              padding: 10,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { display: false }
+          }, 
+          scales: { 
+            x: { 
+              grid: { display: false, color: '#FFC4C4' },
+              ticks: { 
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            }, 
+            y: { 
+              grid: { color: '#FFC4C4', lineWidth: 1 },
+              ticks: { 
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                },
+                callback: function(value) {
+                  if (value >= 1000000) return (value / 1000000).toFixed(1) + ' T';
+                  return value;
+                }
+              }
+            } 
+          } 
+        }
+      });
+      
+      // Ensure black text untuk trend chart
+      setTimeout(() => {
+        if (trendChart) ensureBlackText(trendChart);
+      }, 300);
+
+      const pieLabels = (vals) => { const total = vals.reduce((a,b)=>a+b,0); return (v) => `${v.toFixed(2)} T (${total?((v/total)*100).toFixed(1):'0'}%)`; };
+
+      const dpkChart = new Chart(document.getElementById('dpkShareChart'), {
+        type: 'doughnut',
+        data: { 
+          labels: ['Giro', 'Tabungan', 'Deposito'], 
+          datasets: [{ 
+            data: [shareGiro, shareTab, shareDep], 
+            backgroundColor: [colors.primary, colors.pink, colors.lightPink], 
+            borderWidth: 0 
+          }] 
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          animation: {
+            onComplete: function() {
+              ensureBlackText(this);
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { 
+              color: '#FFFFFF', 
+              font: { 
+                family: "'Inter', sans-serif",
+                size: 10, 
+                weight: '700',
+                color: '#FFFFFF'
+              }, 
+              formatter: pieLabels([shareGiro, shareTab, shareDep]) 
+            } 
+          } 
+        }
+      });
+
+      const kreditChart = new Chart(document.getElementById('kreditUsageChart'), {
+        type: 'doughnut',
+        data: { 
+          labels: ['Produktif', 'Konsumtif'], 
+          datasets: [{ 
+            data: [shareProd, shareKons], 
+            backgroundColor: [colors.primary, colors.pink], 
+            borderWidth: 0 
+          }] 
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          animation: {
+            onComplete: function() {
+              ensureBlackText(this);
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { 
+              color: '#FFFFFF', 
+              font: { 
+                family: "'Inter', sans-serif",
+                size: 10, 
+                weight: '700',
+                color: '#FFFFFF'
+              }, 
+              formatter: pieLabels([shareProd, shareKons]) 
+            } 
+          } 
+        }
+      });
+
+      const produktifChart = new Chart(document.getElementById('produktifDetailChart'), {
+        type: 'doughnut',
+        data: { 
+          labels: ['Modal Kerja', 'Investasi'], 
+          datasets: [{ 
+            data: [shareMk, shareInv], 
+            backgroundColor: [colors.primary, colors.lightPink], 
+            borderWidth: 0 
+          }] 
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          animation: {
+            onComplete: function() {
+              ensureBlackText(this);
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { 
+              color: '#FFFFFF', 
+              font: { 
+                family: "'Inter', sans-serif",
+                size: 10, 
+                weight: '700',
+                color: '#FFFFFF'
+              }, 
+              formatter: pieLabels([shareMk, shareInv]) 
+            } 
+          } 
+        }
+      });
+
+      const nplLdrChart = new Chart(document.getElementById('nplLdrChart'), {
+        type: 'line',
+        data: { 
+          labels: nplLabels, 
+          datasets: [
+            { 
+              label: 'NPL Gross (%)', 
+              data: nplSeries, 
+              borderColor: colors.primary, 
+              backgroundColor: transparent(colors.primary, 0.15), 
+              tension: 0.4, 
+              pointRadius: 5, 
+              pointBackgroundColor: '#FFFFFF', 
+              pointBorderColor: colors.primary,
+              pointBorderWidth: 2, 
+              fill: true 
+            },
+            { 
+              label: 'LDR (%)', 
+              data: ldrSeries, 
+              borderColor: colors.pink, 
+              backgroundColor: transparent(colors.pink, 0.15), 
+              tension: 0.4, 
+              pointRadius: 5, 
+              pointBackgroundColor: '#FFFFFF', 
+              pointBorderColor: colors.pink,
+              pointBorderWidth: 2, 
+              fill: true 
+            }
+          ]
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            onComplete: function() {
+              this.options.scales.x.ticks.color = '#000000';
+              this.options.scales.y.ticks.color = '#000000';
+              this.options.plugins.legend.labels.color = '#000000';
+              this.update('none');
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              padding: 10,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { display: false }
+          }, 
+          scales: { 
+            y: { 
+              grid: { color: '#FFC4C4', lineWidth: 1 }, 
+              ticks: { 
+                callback: v => v+'%',
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            }, 
+            x: { 
+              grid: { display: false, color: '#FFC4C4' },
+              ticks: { 
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            } 
+          } 
+        }
+      });
+      
+      // Ensure black text untuk NPL & LDR chart
+      setTimeout(() => {
+        if (nplLdrChart) ensureBlackText(nplLdrChart);
+      }, 300);
+
+      const umkmKreditNplChart = new Chart(document.getElementById('umkmKreditNplChart'), {
+        data: { 
+          labels: umkmYearLabels, 
+          datasets: [
+            { 
+              type: 'bar', 
+              label: 'Kredit UMKM (M)', 
+              data: umkmYearKredit, 
+              backgroundColor: transparent(colors.primary, 0.4), 
+              borderColor: colors.primary, 
+              borderWidth: 2, 
+              borderRadius: 6, 
+              yAxisID: 'y' 
+            },
+            { 
+              type: 'line', 
+              label: 'NPL Ratio (%)', 
+              data: umkmYearNplRatio, 
+              borderColor: colors.pink, 
+              backgroundColor: transparent(colors.pink, 0.15), 
+              tension: 0.4, 
+              pointRadius: 5, 
+              pointBackgroundColor: '#FFFFFF', 
+              pointBorderColor: colors.pink,
+              pointBorderWidth: 2, 
+              fill: true,
+              yAxisID: 'y1' 
+            }
+          ]
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            onComplete: function() {
+              ensureBlackText(this);
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              padding: 10,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { display: false }
+          }, 
+          scales: { 
+            y: { 
+              position: 'left', 
+              grid: { color: '#FFC4C4', lineWidth: 1 },
+              ticks: { 
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            }, 
+            y1: { 
+              position: 'right',
+              grid: { display: false },
+              ticks: { 
+                callback: v => v+'%',
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            }, 
+            x: { 
+              grid: { display: false, color: '#FFC4C4' },
+              ticks: { 
+                color: '#000000 !important',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '600',
+                  color: '#000000'
+                }
+              }
+            } 
+          } 
+        }
+      });
+
+      const umkmKprChart = new Chart(document.getElementById('umkmKprChart'), {
+        type: 'bar',
+        data: { 
+          labels: umkmYearLabels, 
+          datasets: [{ 
+            label: 'Kredit/Rekening (M)', 
+            data: umkmYearKpr, 
+            backgroundColor: transparent(colors.pink, 0.4), 
+            borderColor: colors.pink, 
+            borderWidth: 2, 
+            borderRadius: 6 
+          }] 
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            onComplete: function() {
+              ensureBlackText(this);
+            }
+          },
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                usePointStyle: true, 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 12,
+                  weight: '600',
+                  color: '#000000'
+                },
+                padding: 15
+              } 
+            },
+            tooltip: {
+              titleColor: '#000000',
+              bodyColor: '#000000',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#850E35',
+              borderWidth: 2,
+              padding: 10,
+              titleFont: { color: '#000000', weight: '600' },
+              bodyFont: { color: '#000000', weight: '500' }
+            },
+            datalabels: { display: false }
+          }, 
+          scales: { 
+            x: { 
+              grid: { display: false, color: '#FFC4C4' },
+              ticks: { 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '500',
+                  color: '#000000'
+                }
+              }
+            }, 
+            y: { 
+              grid: { color: '#FFC4C4', lineWidth: 1 },
+              ticks: { 
+                color: '#000000',
+                font: { 
+                  family: "'Inter', sans-serif",
+                  size: 11,
+                  weight: '500',
+                  color: '#000000'
+                }
+              }
+            } 
+          } 
+        }
+      });
+
+      // Helper function untuk memastikan semua text hitam
+      function ensureBlackText(chart) {
+        if (!chart || !chart.options) return;
+        
+        try {
+          // Update scales - FORCE HITAM
+          if (chart.options.scales) {
+            Object.keys(chart.options.scales).forEach((scaleId) => {
+              const scale = chart.options.scales[scaleId];
+              if (scale) {
+                if (!scale.ticks) scale.ticks = {};
+                scale.ticks.color = '#000000';
+                if (!scale.ticks.font) scale.ticks.font = {};
+                scale.ticks.font.color = '#000000';
+                scale.ticks.font.weight = '600';
+                scale.ticks.font.size = 11;
+              }
+            });
+          }
+          
+          // Update legend - FORCE HITAM
+          if (chart.options.plugins) {
+            if (!chart.options.plugins.legend) chart.options.plugins.legend = {};
+            if (!chart.options.plugins.legend.labels) chart.options.plugins.legend.labels = {};
+            chart.options.plugins.legend.labels.color = '#000000';
+            if (!chart.options.plugins.legend.labels.font) chart.options.plugins.legend.labels.font = {};
+            chart.options.plugins.legend.labels.font.color = '#000000';
+            chart.options.plugins.legend.labels.font.weight = '600';
+            chart.options.plugins.legend.labels.font.size = 12;
+            
+            // Update tooltip
+            if (!chart.options.plugins.tooltip) chart.options.plugins.tooltip = {};
+            chart.options.plugins.tooltip.titleColor = '#000000';
+            chart.options.plugins.tooltip.bodyColor = '#000000';
+            if (!chart.options.plugins.tooltip.titleFont) chart.options.plugins.tooltip.titleFont = {};
+            if (!chart.options.plugins.tooltip.bodyFont) chart.options.plugins.tooltip.bodyFont = {};
+            chart.options.plugins.tooltip.titleFont.color = '#000000';
+            chart.options.plugins.tooltip.titleFont.weight = '600';
+            chart.options.plugins.tooltip.bodyFont.color = '#000000';
+            chart.options.plugins.tooltip.bodyFont.weight = '500';
+          }
+          
+          // Force update chart
+          chart.update('none');
+          
+          // Force dengan direct canvas manipulation
+          if (chart.canvas && chart.canvas.getContext) {
+            const ctx = chart.canvas.getContext('2d');
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#000000';
+          }
+        } catch (e) {
+          console.error('Error ensuring black text:', e);
+        }
+      }
+      
+      // Force semua text di chart menjadi hitam setelah render
+      function forceBlackText() {
+        setTimeout(() => {
+          Chart.helpers.each(Chart.instances, (chart) => {
+            ensureBlackText(chart);
+          });
+        }, 200);
+        setTimeout(() => {
+          Chart.helpers.each(Chart.instances, (chart) => {
+            ensureBlackText(chart);
+          });
+        }, 1000);
+      }
+      
+      // Panggil setelah semua chart dibuat
+      setTimeout(forceBlackText, 500);
+      
+      // Force sekali lagi setelah semua chart selesai render
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          Chart.helpers.each(Chart.instances, (chart) => {
+            ensureBlackText(chart);
+          });
+        }, 1500);
+      });
+      
+      // Force setiap kali chart di-update
+      const originalUpdate = Chart.prototype.update;
+      Chart.prototype.update = function(mode) {
+        const result = originalUpdate.call(this, mode);
+        setTimeout(() => ensureBlackText(this), 50);
+        return result;
+      };
+
+      // Fungsi download PNG
+      function downloadChartPng(chartId, filename) {
+        try {
+          const chart = Chart.getChart(chartId);
+          if (chart) {
+            const url = chart.toBase64Image('image/png', 1.0);
+            const link = document.createElement('a');
+            link.download = filename || chartId + '.png';
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            console.error('Chart not found:', chartId);
+          }
+        } catch (error) {
+          console.error('Error downloading chart:', error);
+          alert('Gagal mengunduh chart. Silakan coba lagi.');
+        }
+      }
+
+      // Fungsi download CSV
+      function downloadAllChartsCsv() {
+        try {
+          let csvContent = 'Data,Value\n';
+          csvContent += 'Aset,' + miniAset.join(',') + '\n';
+          csvContent += 'Kredit,' + miniKredit.join(',') + '\n';
+          csvContent += 'DPK,' + miniDpk.join(',') + '\n';
+          csvContent += '\nTren Tahunan\n';
+          csvContent += 'Tahun,' + yearLabels.join(',') + '\n';
+          csvContent += 'Aset,' + yearAset.join(',') + '\n';
+          csvContent += 'Kredit,' + yearKredit.join(',') + '\n';
+          csvContent += 'DPK,' + yearDpk.join(',') + '\n';
+          csvContent += '\nNPL & LDR\n';
+          csvContent += 'Periode,' + nplLabels.join(',') + '\n';
+          csvContent += 'NPL Gross (%),' + nplSeries.join(',') + '\n';
+          csvContent += 'LDR (%),' + ldrSeries.join(',') + '\n';
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', 'dashboard_data.csv');
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (error) {
+          console.error('Error downloading CSV:', error);
+          alert('Gagal mengunduh CSV. Silakan coba lagi.');
+        }
+      }
+    </script>
+  </body>
+</html>

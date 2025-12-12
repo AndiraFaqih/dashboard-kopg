@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Asuransi</title>
+
+    <!-- KWD Dashboard skin -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='kwd/css/main.css') }}"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind runtime -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <style>
+      :root {
+        --primary: #994038;
+        --primary-light: #B85A52;
+        --primary-lighter: #D4837C;
+        --primary-dark: #7A3028;
+        --primary-50: #FDF5F4;
+        --primary-100: #FAEAE8;
+      }
+      body {
+        font-family: 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: #F9FAFB;
+      }
+      
+      /* Sidebar styling */
+      .sidebar {
+        background: linear-gradient(180deg, #994038 0%, #7A3028 100%);
+      }
+      
+      /* Filter panel */
+      .filter-panel {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* KPI Cards */
+      .kpi-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+      .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+      }
+      .kpi-card.kpi-primary::before { background: linear-gradient(90deg, #994038, #B85A52); }
+      .kpi-card.kpi-success::before { background: linear-gradient(90deg, #059669, #10B981); }
+      .kpi-card.kpi-warning::before { background: linear-gradient(90deg, #D97706, #F59E0B); }
+      .kpi-card.kpi-danger::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+      .kpi-card.kpi-info::before { background: linear-gradient(90deg, #0891B2, #06B6D4); }
+      
+      /* Legacy card class */
+      .card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Chart cards */
+      .chart-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Glass panel */
+      .glass {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      
+      /* Header gradient text */
+      .text-gradient {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 50%, #994038 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      /* Button styling */
+      .btn-primary {
+        background: linear-gradient(135deg, #994038 0%, #B85A52 100%);
+        box-shadow: 0 2px 8px rgba(153, 64, 56, 0.25);
+        transition: all 0.2s ease;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #7A3028 0%, #994038 100%);
+      }
+      
+      /* Positive/Negative indicators */
+      .indicator-positive { color: #059669; }
+      .indicator-negative { color: #DC2626; }
+      
+      /* Select styling */
+      select:focus {
+        border-color: #994038;
+        box-shadow: 0 0 0 3px rgba(153, 64, 56, 0.1);
+      }
+      
+      /* Text color overrides for light theme */
+      .text-slate-100, .text-slate-200, .text-slate-300 {
+        color: #1f2937 !important;
+      }
+      .text-slate-400 {
+        color: #4b5563 !important;
+      }
+      .text-slate-50 {
+        color: #1f2937 !important;
+      }
+      
+      /* Icon arrow-right: hilangkan box dan buat hitam */
+      [data-icon="tabler:arrow-right"] {
+        color: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      [data-icon="tabler:arrow-right"] svg {
+        fill: #000000 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      [data-icon="tabler:arrow-right"] svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+      }
+    </style>
+  </head>
+
+  <body class="antialiased min-h-screen" style="background-color: #FCF5EE;">
+    {# --- MACROS --- #}
+    {% macro fmt_rp_ins(v) -%}
+      {%- if v is not none -%}
+        {# v dalam satuan Juta #}
+        {%- set val_jt = v -%}
+        {%- set val_m = val_jt / 1000 -%}
+        {%- if val_m < 1 -%}
+          Rp {{ "{:,.2f}".format(val_jt).replace(",", ".") }} Juta
+        {%- elif val_m < 1000 -%}
+          Rp {{ "{:,.2f}".format(val_m).replace(",", ".") }} Miliar
+        {%- else -%}
+          Rp {{ "{:,.2f}".format(val_m / 1000).replace(",", ".") }} T
+        {%- endif -%}
+      {%- else -%}
+        -
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro fmt_pct(v) -%}
+      {%- if v is not none -%}
+        {{ "{:,.2f}%".format(v).replace(",", ".") }}
+      {%- else -%}
+        -
+      {%- endif -%}
+    {%- endmacro %}
+
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside
+        class="hidden lg:flex w-64 flex-col"
+        style="background: linear-gradient(180deg, #850E35 0%, #6B0B2A 100%);"
+      >
+        <div
+          class="px-6 py-5 flex items-center gap-3 border-b border-slate-800"
+        >
+          <img 
+            src="{{ url_for('static', filename='kwd/images/logo.jpeg') }}" 
+            alt="Logo OJK KOPG" 
+            class="h-14 w-14 object-contain"
+          >
+          <div>
+            <p class="text-sm text-white">OJK</p>
+            <p class="text-lg font-semibold text-white">KOPG</p>
+          </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <!-- Perbankan -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-white hover:opacity-90"
+            href="{{ url_for('dashboard') }}"
+          >
+            <span class="font-semibold">Perbankan</span>
+          </a>
+
+          <!-- Non Bank - Dropdown -->
+          <div class="space-y-1" x-data="{ open: true }">
+            <button
+              @click="open = !open"
+              class="w-full flex items-center justify-between px-3 py-3 rounded-xl text-white hover:opacity-90"
+            >
+              <span>Non Bank</span>
+              <span
+                class="iconify transition-transform duration-200"
+                :class="{ 'rotate-90': open }"
+                data-icon="tabler:arrow-right"
+                style="color: #000000; background: transparent;"
+              ></span>
+            </button>
+
+            <div x-show="open" x-transition class="ml-4 space-y-1 mt-1">
+              <a
+                class="flex items-center px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10"
+                href="{{ url_for('dashboard_dana_pensiun') }}"
+              >
+                <span class="text-sm">Dana Pensiun</span>
+              </a>
+              <a
+                class="flex items-center px-3 py-2 rounded-lg text-slate-200 bg-primary/20 border border-primary/40"
+                href="{{ url_for('dashboard_asuransi') }}"
+              >
+                <span class="text-sm font-semibold">Asuransi</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Komoditas -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-white hover:opacity-90"
+            href="{{ url_for('dashboard_komoditas') }}"
+          >
+            <span>Komoditas</span>
+          </a>
+
+          <!-- Input Data -->
+          <a
+            class="flex items-center px-3 py-3 rounded-xl text-white hover:opacity-90"
+            href="{{ url_for('input_data') }}"
+          >
+            <span>Input Data</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main -->
+      <div class="flex-1 flex flex-col">
+        <header class="bg-white border-b" style="border-color: #FFC4C4;">
+          <div class="flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: #EE6983;">Non Bank</p>
+              <h1 class="text-2xl sm:text-3xl font-bold" style="color: #850E35;">Dashboard Asuransi</h1>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-gray-100 border-2" style="color: #EE6983; border-color: #FFC4C4;">
+                <span class="iconify tabler--bell text-lg"></span>
+              </button>
+              <img src="{{ url_for('static', filename='kwd/images/avatar.jpeg') }}" alt="avatar" class="h-10 w-10 rounded-full border-2" style="border-color: #FFC4C4;" />
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+          <!-- Filters -->
+          <form
+            method="get"
+            class="bg-white rounded-2xl px-6 py-5 border-2" style="border-color: #FFC4C4;"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+            <div>
+              <label
+                class="block text-xs font-semibold text-gray-700 mb-2"
+                >Provinsi</label
+              >
+              <select
+                name="provinsi"
+                class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+              >
+                <option value="">Semua</option>
+                {% for p in provinsi_list %}
+                <option
+                  value="{{ p }}"
+                  {% if p == provinsi_selected %}selected{% endif %}
+                >
+                  {{ p }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label
+                class="block text-xs font-semibold text-gray-500 uppercase mb-2"
+                >Kabupaten/Kota</label
+              >
+              <select
+                name="kabupaten"
+                class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+              >
+                <option value="">Semua</option>
+                {% for k in kabupaten_list %}
+                <option
+                  value="{{ k }}"
+                  {% if k == kabupaten_selected %}selected{% endif %}
+                >
+                  {{ k }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label
+                class="block text-xs font-semibold text-gray-500 uppercase mb-2"
+                >Jenis Asuransi</label
+              >
+              <select
+                name="jenis"
+                class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+              >
+                <option value="">Semua</option>
+                {% for j in jenis_list %}
+                <option
+                  value="{{ j }}"
+                  {% if j == jenis_selected %}selected{% endif %}
+                >
+                  {{ j }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label
+                class="block text-xs font-semibold text-gray-500 uppercase mb-2"
+                >Tahun (anchor)</label
+              >
+              <select
+                name="tahun"
+                class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+              >
+                <option value="">Semua</option>
+                {% for t in tahun_list %}
+                <option
+                  value="{{ t }}"
+                  {% if t|string == tahun_selected %}selected{% endif %}
+                >
+                  {{ t }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label
+                class="block text-xs font-semibold text-gray-500 uppercase mb-2"
+                >Periode (anchor)</label
+              >
+              <select
+                name="periode"
+                class="w-full rounded-xl border-2 text-sm px-4 py-2.5 bg-white focus:outline-none" style="border-color: #FFC4C4; color: #374151;"
+              >
+                <option value="">Semua</option>
+                {% for pr in periode_list %}
+                <option
+                  value="{{ pr }}"
+                  {% if pr == periode_selected %}selected{% endif %}
+                >
+                  {{ pr }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div
+              class="flex gap-3 md:col-span-2 lg:col-span-1 justify-end"
+            >
+              <button
+                type="submit"
+                class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style="background-color: #850E35;"
+              >
+                Terapkan
+              </button>
+              <a
+                href="{{ url_for('dashboard_asuransi') }}"
+                class="px-4 py-2.5 rounded-xl text-sm font-semibold border-2" style="border-color: #FFC4C4; color: #850E35;"
+              >
+                Reset
+              </a>
+            </div>
+            </div>
+          </form>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- Premi -->
+            <div class="card rounded-2xl p-5 border border-primary/40">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">
+                  TOTAL PREMI
+                </p>
+                <p class="text-2xl font-bold mt-2">
+                  {{ fmt_rp_ins(as_premi_total) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Klaim -->
+            <div class="card rounded-2xl p-5 border border-rose-400/40">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">
+                  TOTAL KLAIM
+                </p>
+                <p class="text-2xl font-bold mt-2">
+                  {{ fmt_rp_ins(as_klaim_total) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Loss Ratio Klaim/Premi -->
+            <div class="card rounded-2xl p-5 border border-amber-400/40">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">
+                  LOSS RATIO KLAIM/PREMI
+                </p>
+                <p class="text-2xl font-bold mt-2">
+                  {{ fmt_pct(as_loss_ratio_klaim) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Peserta & Polis -->
+            <div class="card rounded-2xl p-5 border border-emerald-400/40">
+              <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase">
+                  PESERTA & POLIS
+                </p>
+                <p class="text-2xl font-bold mt-2">
+                  {{ "{:,.0f}".format(as_peserta_premi).replace(",", ".") }}
+                  <span class="text-sm text-slate-300/70">Peserta Premi</span>
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-4 mt-4 text-xs">
+                <div>
+                  <p class="text-slate-300/70">Peserta Klaim</p>
+                  <p class="font-semibold">
+                    {{ "{:,.0f}".format(as_peserta_klaim).replace(",", ".") }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-slate-300/70">Polis Premi</p>
+                  <p class="font-semibold">
+                    {{ "{:,.0f}".format(as_polis_premi).replace(",", ".") }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-slate-300/70">Polis Klaim</p>
+                  <p class="font-semibold">
+                    {{ "{:,.0f}".format(as_polis_klaim).replace(",", ".") }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-slate-300/70">Loss Ratio Peserta</p>
+                  <p class="font-semibold">
+                    {{ fmt_pct(as_loss_ratio_peserta) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini charts: Premi & Klaim (3 periode terakhir) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="chart-card rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-slate-200">
+                  Tren Premi
+                </p>
+              </div>
+              <canvas id="asMiniPremiChart" height="180"></canvas>
+            </div>
+            <div class="chart-card rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-slate-200">
+                  Tren Klaim
+                </p>
+              </div>
+              <canvas id="asMiniKlaimChart" height="180"></canvas>
+            </div>
+          </div>
+
+          <!-- Row: Trend Premi/Klaim & Loss Ratio -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Trend Premi & Klaim (Quarter) -->
+            <div class="chart-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-slate-200">
+                  Tren Premi &amp; Klaim per Triwulan
+                </p>
+              </div>
+              <canvas id="asTrendPremiKlaimChart" height="220"></canvas>
+            </div>
+
+            <!-- Loss Ratio (Quarter) -->
+            <div class="chart-card rounded-2xl p-5">
+              <p class="text-sm font-semibold text-slate-200 mb-3">
+                Loss Ratio Klaim/Premi per Triwulan
+              </p>
+              <canvas id="asLossRatioChart" height="220"></canvas>
+            </div>
+          </div>
+
+          <!-- Row: Share Jenis & Ringkasan -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Share Premi per Jenis -->
+            <div class="chart-card rounded-2xl p-5">
+              <p class="text-sm font-semibold text-slate-200 mb-4 text-center">
+                Share Premi per Jenis (anchor)
+              </p>
+              <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                <!-- Legend -->
+                <div class="w-full md:w-1/3 space-y-2">
+                  {% if as_share_labels and as_share_values %}
+                    {% for lbl in as_share_labels %}
+                      {% set val = as_share_values[loop.index0] %}
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="inline-block w-3 h-3 rounded-sm"
+                            style="background-color: hsl({{ 40 + loop.index0 * 50 }}, 80%, 60%);"
+                          ></span>
+                          <span class="text-xs text-slate-300 font-medium">
+                            {{ lbl }}
+                          </span>
+                        </div>
+                        <div class="text-xs font-semibold text-slate-100">
+                          {{ fmt_rp_ins(val) }}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <p class="text-xs text-slate-400">
+                      Data belum tersedia untuk kombinasi filter saat ini.
+                    </p>
+                  {% endif %}
+                </div>
+
+                <!-- Pie -->
+                <div class="w-40 h-40 md:w-52 md:h-52 flex items-center justify-center">
+                  <canvas id="asPremiSharePie"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ringkasan Naratif -->
+            <div class="chart-card rounded-2xl p-5">
+              <p class="text-sm font-semibold text-slate-200 mb-4">
+                Ringkasan Singkat
+              </p>
+              <ul class="text-sm text-slate-300 space-y-2">
+                <li>
+                  • Total premi saat ini:
+                  <span class="font-semibold">{{ fmt_rp_ins(as_premi_total) }}</span>
+                </li>
+                <li>
+                  • Total klaim yang terjadi:
+                  <span class="font-semibold">{{ fmt_rp_ins(as_klaim_total) }}</span>
+                </li>
+                <li>
+                  • Loss ratio klaim/premi:
+                  <span class="font-semibold">{{ fmt_pct(as_loss_ratio_klaim) }}</span>
+                </li>
+                <li>
+                  • Peserta premi:
+                  <span class="font-semibold">
+                    {{ "{:,.0f}".format(as_peserta_premi).replace(",", ".") }}
+                  </span>
+                  &nbsp;| Peserta klaim:
+                  <span class="font-semibold">
+                    {{ "{:,.0f}".format(as_peserta_klaim).replace(",", ".") }}
+                  </span>
+                </li>
+                <li>
+                  • Loss ratio berbasis peserta:
+                  <span class="font-semibold">{{ fmt_pct(as_loss_ratio_peserta) }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- Iconify -->
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <!-- KWD base JS -->
+    <script
+      src="{{ url_for('static', filename='kwd/js/main.js') }}"
+      defer
+    ></script>
+    <!-- Alpine.js -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+
+    <script>
+      const brand = {
+        primary: '#994038',
+        secondary: '#b8544a',
+        slate: '#1e293b',
+        accent: '#d16b5f',
+      };
+
+      // Data dari context Python
+      const asTrendLabels = {{ as_trend_labels|tojson }};
+      const asTrendPremi  = {{ as_trend_premi|tojson }};
+      const asTrendKlaim  = {{ as_trend_klaim|tojson }};
+      const asTrendLoss   = {{ as_trend_lossratio|tojson }};
+
+      const asShareLabels = {{ as_share_labels|tojson }};
+      const asShareValues = {{ as_share_values|tojson }};
+
+      Chart.register(ChartDataLabels);
+      Chart.defaults.color = 'black';
+      Chart.defaults.borderColor = '#1f2a44';
+      Chart.defaults.plugins.datalabels =
+        Chart.defaults.plugins.datalabels || {};
+
+      const transparent = (hex, alpha = 0.35) =>
+        hex.startsWith('#')
+          ? `rgba(${parseInt(hex.substr(1, 2), 16)},${parseInt(
+              hex.substr(3, 2),
+              16
+            )},${parseInt(hex.substr(5, 2), 16)},${alpha})`
+          : hex;
+
+      const makeMiniBarChart = (id, labels, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        new Chart(el, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                data,
+                backgroundColor: transparent(color, 0.35),
+                borderColor: color,
+                borderWidth: 1.5,
+                borderRadius: 10,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: { display: false },
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: '#1f2937' } },
+            },
+          },
+        });
+      };
+
+      // Ambil 3 periode terakhir untuk mini chart
+      const miniLabels = asTrendLabels.slice(-3);
+      const miniPremi  = asTrendPremi.slice(-3);
+      const miniKlaim  = asTrendKlaim.slice(-3);
+
+      // Mini charts
+      makeMiniBarChart('asMiniPremiChart', miniLabels, miniPremi, brand.primary);
+      makeMiniBarChart('asMiniKlaimChart', miniLabels, miniKlaim, '#f97316');
+
+      // Trend Premi & Klaim (Quarter)
+      (() => {
+        const ctx = document.getElementById('asTrendPremiKlaimChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+          data: {
+            labels: asTrendLabels,
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Premi (Juta)',
+                data: asTrendPremi,
+                backgroundColor: transparent('#22c55e', 0.5),
+                borderColor: '#22c55e',
+                borderWidth: 1.5,
+                borderRadius: 8,
+                yAxisID: 'y',
+              },
+              {
+                type: 'line',
+                label: 'Klaim (Juta)',
+                data: asTrendKlaim,
+                borderColor: '#f97316',
+                backgroundColor: transparent('#f97316', 0.3),
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#0b1224',
+                pointBorderColor: '#f97316',
+                yAxisID: 'y',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              datalabels: { display: false },
+            },
+            scales: {
+              y: {
+                position: 'left',
+                grid: { color: '#1f2937' },
+              },
+              x: {
+                grid: { display: false },
+              },
+            },
+          },
+        });
+      })();
+
+      // Loss Ratio (Quarter)
+      (() => {
+        const ctx = document.getElementById('asLossRatioChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: asTrendLabels,
+            datasets: [
+              {
+                label: 'Loss Ratio (%)',
+                data: asTrendLoss,
+                borderColor: '#e11d48',
+                backgroundColor: transparent('#e11d48', 0.3),
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#0b1224',
+                pointBorderColor: '#e11d48',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              datalabels: { display: false },
+            },
+            scales: {
+              y: {
+                grid: { color: '#1f2937' },
+                ticks: { callback: (v) => `${v}%` },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      })();
+
+      // Share Premi per Jenis (Pie)
+      (() => {
+        const ctx = document.getElementById('asPremiSharePie');
+        if (!ctx || !asShareValues.length) return;
+
+        const total = asShareValues.reduce((a, b) => a + b, 0);
+        const colors = asShareLabels.map(
+          (_, idx) => `hsl(${40 + idx * 50}, 80%, 60%)`
+        );
+
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: asShareLabels,
+            datasets: [
+              {
+                data: asShareValues,
+                backgroundColor: colors,
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                color: '#0f172a',
+                font: { size: 14, weight: '700' },
+                formatter: (value) => {
+                  if (!total) return '0%';
+                  const pct =
+                    ((value / total) * 100).toFixed(2).replace('.', ',');
+                  return pct + '%';
+                },
+              },
+            },
+          },
+        });
+      })();
+
+      // Theme toggle
+      (() => {
+        const key = 'theme';
+        const btn = document.getElementById('themeToggle');
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const initial =
+          localStorage.getItem(key) || (prefersDark ? 'dark' : 'light');
+
+        const applyTheme = (mode) => {
+          const body = document.body;
+          if (mode === 'light') {
+            body.classList.add('theme-light');
+          } else {
+            body.classList.remove('theme-light');
+          }
+          localStorage.setItem(key, mode);
+          if (btn) {
+            btn
+              .querySelector('.iconify')
+              ?.setAttribute(
+                'data-icon',
+                mode === 'light' ? 'tabler:moon' : 'tabler:sun'
+              );
+          }
+        };
+
+        applyTheme(initial);
+        btn?.addEventListener('click', () => {
+          const next = document.body.classList.contains('theme-light')
+            ? 'dark'
+            : 'light';
+          applyTheme(next);
+        });
+      })();
+    </script>
+  </body>
+</html>
